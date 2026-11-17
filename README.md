@@ -30,6 +30,10 @@ npm run build
 
 The published output is in `dist/`.
 
-## GitHub
+## GitHub Pages
 
-The Webdev project is saved to its managed Git remote. To place the code in a personal GitHub repository, connect the project through the Manus GitHub integration or push the project files to a repository with GitHub Pages enabled. The static `dist/` output can be hosted by GitHub Pages, Netlify, Cloudflare Pages, or another static host without a backend.
+The repository includes a GitHub Actions workflow that builds `dist/` and deploys it to GitHub Pages on every push to `main`. The app uses relative asset paths so it works from a repository subpath.
+
+## Project structure
+
+`index.html` contains the author onboarding flow and workspace structure. `styles.css` contains the responsive editorial interface. `app.js` contains manuscript parsing, chapter navigation, feedback capture, revision editing, local persistence, and downloads. `build.js` creates the static `dist/` output.
