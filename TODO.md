@@ -1,18 +1,17 @@
-# Revision Guide Website TODO
+# Author's Revision Desk TODO
 
-## Approved editorial workspace
-
-Create a polished responsive website based on the beta reading feedback for Chapter One: The Network Marketing Opportunity.
+## Reusable manuscript review workspace
 
 Acceptance criteria:
 
-1. Provide a strong chapter overview that summarizes the review context, key takeaways, and current revision status at a glance.
-2. Present an honest overall assessment with the chapter's strengths, weaknesses, and readiness for revision in clear editorial language.
-3. Show prioritized revision goals that distinguish the most important changes from secondary refinements.
-4. Include dedicated feedback sections for first impression, emotional impact, character development, patterns noticed, plot and pacing, clarity, overall reader experience, detailed improvement suggestions, and final assessment.
-5. Organize chapter feedback into scannable units with observations, supporting detail, and recommended action.
-6. Provide concrete revision suggestions that the author can apply directly to the manuscript.
-7. Include an interactive progress checklist whose completion state persists in the browser.
-8. Provide responsive navigation and layouts for desktop, tablet, and mobile screens.
-9. Use accessible semantic structure, keyboard friendly controls, visible focus states, sufficient contrast, and clear status labels.
-10. Keep the tone thoughtful, direct, detailed, professional, and human, with no login or backend.
+1. Authors can import TXT, Markdown, or HTML files or paste manuscript text into a new project.
+2. Common chapter headings are split into separate chapter workspaces, with an option to add chapters manually.
+3. The workspace keeps the original draft and a separate improved version for every chapter.
+4. Authors or beta readers can record detailed feedback by first impression, emotional impact, character development, patterns, plot and pacing, clarity, overall reader experience, and suggestions for improvement.
+5. The app creates a focused revision brief from the recorded feedback.
+6. Feedback, manuscript text, improved text, and project metadata persist locally in the browser.
+7. Feedback can be downloaded separately as Markdown for the whole manuscript or the current chapter.
+8. The improved manuscript can be downloaded separately as plain text for the whole manuscript or the current chapter.
+9. The complete project can be downloaded as a JSON backup.
+10. The interface is responsive, keyboard friendly, accessible, and usable without login or a backend.
+11. The project includes a self contained build output suitable for static hosting such as GitHub Pages.
