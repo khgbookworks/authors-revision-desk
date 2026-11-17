@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1f4338" />
+    <meta name="description" content="A private, practical workspace for beta reading feedback and manuscript revision." />
+    <title>Author's Revision Desk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Author's Revision Desk home">
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <span><strong>Author's Revision Desk</strong><small>Private manuscript workspace</small></span>
+      </a>
+      <nav class="top-nav" aria-label="Primary navigation">
+        <a href="#workspace">Workspace</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#privacy">Privacy</a>
+      </nav>
+      <button class="mobile-menu" type="button" aria-label="Open navigation" aria-controls="top-nav" aria-expanded="false" data-mobile-menu><span></span><span></span></button>
+    </header>
+
+    <main id="main-content">
+      <section class="welcome section-shell" id="top">
+        <div class="welcome-copy">
+          <p class="eyebrow">For authors, beta readers, and thoughtful revision</p>
+          <h1>Turn honest feedback into a <em>stronger manuscript.</em></h1>
+          <p class="welcome-lede">Bring your manuscript and your feedback into one calm workspace. Read chapter by chapter, revise with intention, and download each result separately when you are ready.</p>
+          <div class="welcome-points"><span><b>01</b> Import or paste</span><span><b>02</b> Review by chapter</span><span><b>03</b> Revise and export</span></div>
+        </div>
+        <div class="privacy-card"><span class="card-kicker"><i></i> Your work stays with you</span><h2>No account. No upload. No public manuscript.</h2><p>This version keeps manuscript text, feedback, and revisions in your browser's local storage. Use the project backup whenever you want a portable copy.</p><span class="card-note">Best for private drafts and feedback from trusted readers</span></div>
+      </section>
+
+      <section class="workspace section-shell" id="workspace">
+        <div class="workspace-topline">
+          <div><p class="eyebrow">Your manuscript desk</p><h2 id="workspaceHeading">Start a new review</h2></div>
+          <div class="workspace-actions"><button class="button button-quiet" type="button" data-new-project>New project</button><label class="button button-primary file-button">Import text file<input id="fileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,text/plain,text/markdown,text/html" /></label></div>
+        </div>
+
+        <div class="onboarding" id="onboarding">
+          <div class="onboarding-main">
+            <span class="step-number">01</span>
+            <h3>Bring in your manuscript</h3>
+            <p>Paste a full manuscript or one chapter below. The desk will recognize common headings such as Chapter One, Chapter 1, Prologue, and Part I.</p>
+            <label class="field-label" for="projectTitle">Project title</label>
+            <input class="text-input" id="projectTitle" type="text" placeholder="For example, The Night Garden" autocomplete="off" />
+            <label class="field-label" for="manuscriptInput">Manuscript or chapter text</label>
+            <textarea class="manuscript-input" id="manuscriptInput" placeholder="Paste your manuscript here...\n\nTip: use headings such as CHAPTER ONE or Chapter 1 to create separate chapter tabs."></textarea>
+            <button class="button button-primary large-button" type="button" data-create-project>Create my workspace <span aria-hidden="true">↗</span></button>
+            <p class="micro-note">Accepted import formats: TXT, Markdown, and HTML. DOCX and PDF files can be copied into the editor as text.</p>
+          </div>
+          <aside class="onboarding-side"><span class="step-number">02</span><h3>Or bring feedback first</h3><p>Already have notes from a beta reader? Create a project with any short piece of manuscript, then paste the feedback into the chapter review fields.</p><div class="sample-note"><strong>Professional lenses</strong><span>First impression</span><span>Emotional impact</span><span>Character development</span><span>Plot and pacing</span><span>Clarity and reader experience</span></div></aside>
+        </div>
+
+        <div class="desk" id="desk" hidden>
+          <aside class="chapter-rail" aria-label="Chapter navigation">
+            <div class="rail-heading"><span>Chapters</span><button class="icon-button" type="button" data-add-chapter aria-label="Add chapter">+</button></div>
+            <div class="chapter-list" id="chapterList"></div>
+            <div class="rail-footer"><span id="chapterCount">0 chapters</span><span id="completionCount">0% revised</span></div>
+          </aside>
+
+          <section class="chapter-editor" aria-labelledby="chapterHeading">
+            <div class="editor-head"><div><p class="eyebrow">Current chapter</p><h3 id="chapterHeading">Chapter One</h3><span class="chapter-meta" id="chapterMeta">0 words</span></div><div class="editor-head-actions"><button class="button button-quiet" type="button" data-start-revision>Start revision from draft</button><button class="icon-button" type="button" data-delete-chapter aria-label="Delete current chapter">×</button></div></div>
+            <div class="editor-tabs" role="tablist" aria-label="Chapter writing views"><button class="editor-tab is-active" type="button" role="tab" aria-selected="true" data-editor-tab="draft">Original draft</button><button class="editor-tab" type="button" role="tab" aria-selected="false" data-editor-tab="improved">Improved version</button></div>
+            <div class="writing-panel is-active" data-writing-panel="draft"><textarea id="draftText" class="writing-area" aria-label="Original chapter draft"></textarea><div class="writing-footer"><span>Original text is kept as a reference.</span><span id="draftWords">0 words</span></div></div>
+            <div class="writing-panel" data-writing-panel="improved" hidden><textarea id="improvedText" class="writing-area" aria-label="Improved chapter version" placeholder="Start your improved version here, or use the button above to copy the original draft."></textarea><div class="writing-footer"><span>Write freely. Your improved text is saved as you type.</span><span id="improvedWords">0 words</span></div></div>
+          </section>
+
+          <aside class="feedback-panel" aria-labelledby="feedbackHeading">
+            <div class="feedback-head"><div><p class="eyebrow">Beta reader report</p><h3 id="feedbackHeading">Feedback and revision brief</h3></div><span class="saved-state" id="savedState">Saved locally</span></div>
+            <p class="feedback-intro">Paste notes from a reader or write your own honest response. Detailed answers are more useful than ratings alone.</p>
+            <div class="feedback-fields" id="feedbackFields"></div>
+            <label class="field-label" for="generalFeedback">General feedback or reader letter</label><textarea class="feedback-area" id="generalFeedback" placeholder="Paste the full feedback here, or add anything that does not fit the sections above."></textarea>
+            <div class="brief-card"><div class="brief-card-head"><span>Revision brief</span><button class="quiet-button" type="button" data-copy-brief>Copy brief</button></div><p id="revisionBrief">Add feedback above to create a focused revision brief.</p></div>
+            <div class="feedback-actions"><button class="button button-primary" type="button" data-download-feedback>Download feedback</button><button class="button button-quiet" type="button" data-download-project>Backup project</button></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="how-it-works section-shell" id="how-it-works">
+        <div class="section-intro"><p class="eyebrow">A simple professional process</p><h2>Read deeply. Revise deliberately.</h2><p>Good feedback is not a verdict. It is material you can examine, question, and use. This desk keeps the reader's response beside the words it is responding to.</p></div>
+        <div class="process-grid"><article><span>01</span><h3>Capture the manuscript</h3><p>Import a text file or paste your chapters. The desk keeps an original draft and a separate improved version.</p></article><article><span>02</span><h3>Organize the response</h3><p>Record feedback under consistent lenses so patterns become visible across chapters.</p></article><article><span>03</span><h3>Make the changes</h3><p>Use the revision brief as a guide, then edit the improved version in your own voice.</p></article><article><span>04</span><h3>Take your work with you</h3><p>Download feedback and revised manuscript files separately, either as a whole book or by chapter.</p></article></div>
+      </section>
+
+      <section class="privacy-section section-shell" id="privacy"><div class="privacy-symbol" aria-hidden="true">R</div><div><p class="eyebrow">A note on privacy</p><h2>Your draft is not a product.</h2><p>This app is designed to work without an account or a manuscript server. Your project lives in this browser until you export it. Clear your browser data and the local project may be lost, so use Backup project regularly.</p></div><button class="button button-secondary" type="button" data-scroll-workspace>Open workspace <span aria-hidden="true">↑</span></button></section>
+    </main>
+    <footer class="site-footer section-shell"><span>Author's Revision Desk</span><span>Private, local, author controlled</span><span>Feedback and manuscript exports are separate</span></footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

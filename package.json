@@ -1,0 +1,11 @@
+{
+  "name": "revision-guide",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "serve:dist": "SERVE_DIST=true node server.js",
+    "build": "node build.js"
+  }
+}
