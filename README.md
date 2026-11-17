@@ -32,7 +32,11 @@ The published output is in `dist/`.
 
 ## GitHub Pages
 
-The repository includes a GitHub Actions workflow that builds `dist/` and deploys it to GitHub Pages on every push to `main`. The app uses relative asset paths so it works from a repository subpath.
+GitHub Pages is configured to publish the `main` branch from the repository root. The public app is available at:
+
+https://khgbookworks.github.io/authors-revision-desk/
+
+The app uses relative asset paths so it works from the repository subpath.
 
 ## Project structure
 
