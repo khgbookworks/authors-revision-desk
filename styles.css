@@ -3,3 +3,24 @@
 @media(max-width:760px){.section-shell,.site-header{width:min(100% - 40px,680px)}.top-nav{display:none}.mobile-menu{display:block;margin-left:auto}.site-header{position:relative}.top-nav.is-open{position:absolute;top:61px;right:0;z-index:5;display:flex;flex-direction:column;gap:0;width:190px;margin:0;padding:8px 18px;background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow)}.top-nav.is-open a{padding:10px 0;border-bottom:1px solid var(--line)}.top-nav.is-open a:last-child{border-bottom:0}.welcome{grid-template-columns:1fr;gap:55px;padding-top:70px;padding-bottom:75px}.privacy-card{max-width:510px;transform:none}.onboarding{grid-template-columns:1fr}.desk{grid-template-columns:1fr}.chapter-rail{border-right:0;border-bottom:1px solid var(--line)}.chapter-list{display:flex;overflow:auto;gap:4px;padding:10px}.chapter-button{min-width:140px}.rail-footer{display:none}.chapter-editor{padding:24px 20px}.feedback-panel{display:block}.feedback-panel>.feedback-head,.feedback-panel>.feedback-intro{display:block}.feedback-actions,.brief-card{margin-top:18px}.writing-area{min-height:450px}.privacy-section{grid-template-columns:42px 1fr}.privacy-section .button{grid-column:2;width:max-content}}
 @media(max-width:520px){body{font-size:14px}.section-shell,.site-header{width:calc(100% - 32px)}.site-header{height:70px}.welcome{padding-top:58px}.welcome h1{font-size:50px}.welcome-lede{font-size:16px}.welcome-points{display:grid;gap:10px}.workspace{padding-top:64px;padding-bottom:76px}.workspace-topline{display:block}.workspace-actions{margin-top:22px;flex-wrap:wrap}.onboarding-main,.onboarding-side{padding:23px 19px}.workspace-topline h2{font-size:43px}.editor-head{display:block}.editor-head-actions{margin-top:17px}.editor-head h3{font-size:27px}.writing-area{min-height:390px;padding:15px 17px;font-size:15px}.process-grid{grid-template-columns:1fr}.privacy-section{gap:14px;padding-top:58px}.privacy-section h2{font-size:38px}.site-footer{flex-direction:column;gap:7px;padding-bottom:27px}.toast{right:16px;left:16px;bottom:16px;max-width:none}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
+/* Accessible import and revision additions */
+.file-button{position:relative;overflow:hidden}
+.file-button input{display:block;position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.paste-tools{display:flex;align-items:center;gap:12px;margin:15px 0 8px;color:var(--muted);font-size:11px;flex-wrap:wrap}
+.paste-tools .button{padding:8px 11px}
+.drop-zone{margin-top:12px;border:1px dashed var(--coral);background:rgba(240,198,185,.13);color:var(--ink-soft);padding:12px 14px;text-align:center;font-size:11px;cursor:pointer;transition:background .2s ease,border .2s ease}
+.drop-zone:hover,.drop-zone.is-dragging{background:var(--coral-soft);border-color:var(--coral);color:var(--ink)}
+.editing-plan{margin-top:23px;padding-top:18px;border-top:1px solid var(--line)}
+.editing-plan-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.editing-plan-head .field-label{margin:0 0 5px}
+.editing-note{color:var(--muted);font-size:10px;line-height:1.4;margin:0}
+.editing-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:13px}
+.editing-option{display:flex;align-items:flex-start;gap:7px;color:var(--ink-soft);font-size:11px;line-height:1.25;cursor:pointer}
+.editing-option input{accent-color:var(--coral);margin-top:2px}
+.editing-passes{display:grid;gap:12px;margin-top:15px}
+.editing-pass{padding:13px;background:rgba(255,253,248,.7);border:1px solid var(--line)}
+.editing-pass-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;color:var(--coral);font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+.editing-pass .text-input,.editing-pass .feedback-area{margin-top:8px;background:var(--paper);font-size:11px}
+.editing-pass .feedback-area{min-height:78px}
+@media(max-width:520px){.paste-tools{align-items:stretch;flex-direction:column}.paste-tools .button{width:100%}.editing-plan-head{display:block}.editing-plan-head .button{margin-top:12px;width:100%}.editing-options{grid-template-columns:1fr}.drop-zone{padding:15px 12px}.file-button{min-height:44px}}

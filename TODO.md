@@ -1,17 +1,36 @@
 # Author's Revision Desk TODO
 
-## Reusable manuscript review workspace
+## Accessible manuscript intake
 
 Acceptance criteria:
 
-1. Authors can import TXT, Markdown, or HTML files or paste manuscript text into a new project.
-2. Common chapter headings are split into separate chapter workspaces, with an option to add chapters manually.
-3. The workspace keeps the original draft and a separate improved version for every chapter.
-4. Authors or beta readers can record detailed feedback by first impression, emotional impact, character development, patterns, plot and pacing, clarity, overall reader experience, and suggestions for improvement.
-5. The app creates a focused revision brief from the recorded feedback.
-6. Feedback, manuscript text, improved text, and project metadata persist locally in the browser.
-7. Feedback can be downloaded separately as Markdown for the whole manuscript or the current chapter.
-8. The improved manuscript can be downloaded separately as plain text for the whole manuscript or the current chapter.
-9. The complete project can be downloaded as a JSON backup.
-10. The interface is responsive, keyboard friendly, accessible, and usable without login or a backend.
-11. The project includes a self contained build output suitable for static hosting such as GitHub Pages.
+1. Authors can paste copied text directly into a large manuscript field on phone and desktop.
+2. A clipboard helper provides a clear fallback when browser clipboard permission is unavailable.
+3. Authors can choose or drag and drop TXT, Markdown, HTML, DOCX, and PDF files.
+4. Supported files are read in the browser and manuscript text stays off a manuscript server.
+5. Import controls work with keyboard, touch, and small screens.
+
+## Authentic feedback workspace
+
+Acceptance criteria:
+
+1. The established chapter by chapter feedback lenses remain available.
+2. The interface makes clear that the user writes the reader response in their own words and the desk does not invent canned reactions.
+3. Each chapter has a user defined field for the areas where the reader wants feedback.
+4. Each chapter has a field for the author's decision after the beta reading or manuscript review.
+5. Custom focus and author decisions appear in the feedback export.
+
+## Repeatable revision workflow
+
+Acceptance criteria:
+
+1. Authors can select multiple editing and improvement focuses.
+2. Authors can add as many named editing passes as they need.
+3. Editing focus and pass notes save per chapter in local storage.
+4. Editing decisions and planned passes appear in the revision brief and exported feedback.
+5. The original draft and improved version remain separate for every chapter.
+
+## Delivery
+
+1. Build and syntax checks pass.
+2. Push the updated files to the canonical project and update the live GitHub Pages repository.
