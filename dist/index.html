@@ -40,7 +40,7 @@
       <section class="workspace section-shell" id="workspace">
         <div class="workspace-topline">
           <div><p class="eyebrow">Your manuscript desk</p><h2 id="workspaceHeading">Start a new review</h2></div>
-          <div class="workspace-actions"><button class="button button-quiet" type="button" data-new-project>New project</button><label class="button button-primary file-button">Import text file<input id="fileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,text/plain,text/markdown,text/html" /></label></div>
+          <div class="workspace-actions"><button class="button button-quiet" type="button" data-new-project>New project</button><label class="button button-primary file-button" for="fileInput">Choose a manuscript file<input id="fileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,.docx,.pdf,text/plain,text/markdown,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label></div>
         </div>
 
         <div class="onboarding" id="onboarding">
@@ -51,9 +51,11 @@
             <label class="field-label" for="projectTitle">Project title</label>
             <input class="text-input" id="projectTitle" type="text" placeholder="For example, The Night Garden" autocomplete="off" />
             <label class="field-label" for="manuscriptInput">Manuscript or chapter text</label>
+            <div class="paste-tools"><button class="button button-quiet" type="button" data-paste-clipboard>Paste from clipboard</button><span>Or tap inside the box and paste normally.</span></div>
             <textarea class="manuscript-input" id="manuscriptInput" placeholder="Paste your manuscript here...\n\nTip: use headings such as CHAPTER ONE or Chapter 1 to create separate chapter tabs."></textarea>
+            <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-controls="fileInput">Drop a TXT, Markdown, HTML, DOCX, or PDF file here, or choose one above.</div>
             <button class="button button-primary large-button" type="button" data-create-project>Create my workspace <span aria-hidden="true">↗</span></button>
-            <p class="micro-note">Accepted import formats: TXT, Markdown, and HTML. DOCX and PDF files can be copied into the editor as text.</p>
+            <p class="micro-note">Accepted files: TXT, Markdown, HTML, DOCX, and PDF. Files are read in your browser and are not uploaded to a manuscript server.</p>
           </div>
           <aside class="onboarding-side"><span class="step-number">02</span><h3>Or bring feedback first</h3><p>Already have notes from a beta reader? Create a project with any short piece of manuscript, then paste the feedback into the chapter review fields.</p><div class="sample-note"><strong>Professional lenses</strong><span>First impression</span><span>Emotional impact</span><span>Character development</span><span>Plot and pacing</span><span>Clarity and reader experience</span></div></aside>
         </div>
@@ -74,9 +76,12 @@
 
           <aside class="feedback-panel" aria-labelledby="feedbackHeading">
             <div class="feedback-head"><div><p class="eyebrow">Beta reader report</p><h3 id="feedbackHeading">Feedback and revision brief</h3></div><span class="saved-state" id="savedState">Saved locally</span></div>
-            <p class="feedback-intro">Paste notes from a reader or write your own honest response. Detailed answers are more useful than ratings alone.</p>
+            <p class="feedback-intro">Write what you genuinely noticed in your own words. The desk never invents reader reactions or turns them into canned feedback.</p>
             <div class="feedback-fields" id="feedbackFields"></div>
-            <label class="field-label" for="generalFeedback">General feedback or reader letter</label><textarea class="feedback-area" id="generalFeedback" placeholder="Paste the full feedback here, or add anything that does not fit the sections above."></textarea>
+            <label class="field-label" for="generalFeedback">General feedback or reader letter</label><textarea class="feedback-area" id="generalFeedback" placeholder="Write in your own voice. What stayed with you after reading this chapter?"></textarea>
+            <label class="field-label" for="customFeedbackFocus">What would you like feedback on?</label><textarea class="feedback-area" id="customFeedbackFocus" placeholder="Add your own focus, such as the ending, romance arc, world building, sensitivity, market fit, or anything else."></textarea>
+            <label class="field-label" for="authorDecision">Author's decision after the review</label><textarea class="feedback-area" id="authorDecision" placeholder="After reading the feedback, what do you want to keep, question, change, or revisit?"></textarea>
+            <div class="editing-plan"><div class="editing-plan-head"><div><span class="field-label">Editing and improvement focus</span><p class="editing-note">Choose as many as you need. You can add another pass whenever your manuscript changes.</p></div><button class="button button-quiet" type="button" data-add-editing-pass>Add another pass</button></div><div class="editing-options" id="editingOptions"></div><div class="editing-passes" id="editingPasses"></div></div>
             <div class="brief-card"><div class="brief-card-head"><span>Revision brief</span><button class="quiet-button" type="button" data-copy-brief>Copy brief</button></div><p id="revisionBrief">Add feedback above to create a focused revision brief.</p></div>
             <div class="feedback-actions"><button class="button button-primary" type="button" data-download-feedback>Download feedback</button><button class="button button-quiet" type="button" data-download-project>Backup project</button></div>
           </aside>
@@ -92,6 +97,8 @@
     </main>
     <footer class="site-footer section-shell"><span>Author's Revision Desk</span><span>Private, local, author controlled</span><span>Feedback and manuscript exports are separate</span></footer>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

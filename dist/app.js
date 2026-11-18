@@ -9,8 +9,23 @@ const feedbackDefinitions = [
   ["suggestions", "Suggestions for improvement", "What specific change would make the chapter more effective?", "Offer a move the author can actually make on the page."]
 ];
 
+const editingTypes = [
+  ["developmental", "Developmental edit"],
+  ["structure", "Structure and chapter order"],
+  ["character", "Character and motivation"],
+  ["plot", "Plot, tension, and pacing"],
+  ["voice", "Voice and style"],
+  ["line", "Line edit"],
+  ["copy", "Copy edit and consistency"],
+  ["clarity", "Clarity and readability"],
+  ["continuity", "Continuity check"],
+  ["proofreading", "Proofreading"],
+  ["sensitivity", "Sensitivity and representation"]
+];
+
 const storageKey = "authors-revision-desk-project";
 const defaultFeedback = () => Object.fromEntries(feedbackDefinitions.map(([key]) => [key, ""]));
+const defaultChapter = (title, draft = "") => ({ id: makeId(), title, draft, improved: draft, feedback: defaultFeedback(), customFocus: "", authorDecision: "", editingTypes: [], editingPasses: [] });
 const makeId = () => `chapter-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 let state = loadState() || { title: "", chapters: [], selectedId: null, updatedAt: null };
 let saveTimer;
@@ -30,7 +45,11 @@ function loadState() {
       title: chapter.title || "Untitled chapter",
       draft: typeof chapter.draft === "string" ? chapter.draft : "",
       improved: typeof chapter.improved === "string" ? chapter.improved : "",
-      feedback: { ...defaultFeedback(), ...(chapter.feedback || {}) }
+      feedback: { ...defaultFeedback(), ...(chapter.feedback || {}) },
+      customFocus: typeof chapter.customFocus === "string" ? chapter.customFocus : "",
+      authorDecision: typeof chapter.authorDecision === "string" ? chapter.authorDecision : "",
+      editingTypes: Array.isArray(chapter.editingTypes) ? chapter.editingTypes : [],
+      editingPasses: Array.isArray(chapter.editingPasses) ? chapter.editingPasses : []
     }));
     return saved;
   } catch (error) {
@@ -55,16 +74,16 @@ function splitManuscript(text) {
   if (!normalized) return [];
   const headingPattern = /^(?:(?:chapter|part|prologue|epilogue)\b[^\n]*|[A-Z][A-Z\s0-9:'’,-]{5,})$/gim;
   const matches = [...normalized.matchAll(headingPattern)].filter((match) => match.index !== 0 || /chapter|part|prologue|epilogue/i.test(match[0]));
-  if (matches.length < 2) return [{ id: makeId(), title: "Manuscript", draft: normalized, improved: normalized, feedback: defaultFeedback() }];
+  if (matches.length < 2) return [defaultChapter("Manuscript", normalized)];
   const chapters = [];
   const preface = normalized.slice(0, matches[0].index).trim();
-  if (preface) chapters.push({ id: makeId(), title: "Opening material", draft: preface, improved: preface, feedback: defaultFeedback() });
+  if (preface) chapters.push(defaultChapter("Opening material", preface));
   matches.forEach((match, index) => {
     const start = match.index;
     const end = index + 1 < matches.length ? matches[index + 1].index : normalized.length;
     const title = match[0].trim().replace(/\s+/g, " ");
     const draft = normalized.slice(start, end).trim();
-    chapters.push({ id: makeId(), title, draft, improved: draft, feedback: defaultFeedback() });
+    chapters.push(defaultChapter(title, draft));
   });
   return chapters;
 }
@@ -97,8 +116,11 @@ function renderCurrentChapter() {
   $("#draftWords").textContent = `${wordCount(chapter.draft)} words`;
   $("#improvedWords").textContent = `${wordCount(chapter.improved)} words`;
   $("#generalFeedback").value = chapter.feedback.general || "";
+  $("#customFeedbackFocus").value = chapter.customFocus || "";
+  $("#authorDecision").value = chapter.authorDecision || "";
   $("#feedbackFields").innerHTML = feedbackDefinitions.map(([key, label, question, help]) => `<div class="feedback-group"><label for="feedback-${key}">${label}</label><span class="feedback-help">${question}</span><textarea class="feedback-input" id="feedback-${key}" data-feedback-key="${key}" placeholder="Write detailed notes here..."></textarea></div>`).join("");
   feedbackDefinitions.forEach(([key]) => { $(`#feedback-${key}`).value = chapter.feedback[key] || ""; });
+  renderEditingPlan();
   updateBrief();
   bindCurrentChapter();
 }
@@ -108,7 +130,20 @@ function bindCurrentChapter() {
   $("#improvedText").oninput = (event) => { selectedChapter().improved = event.target.value; $("#improvedWords").textContent = `${wordCount(event.target.value)} words`; $("#chapterMeta").textContent = `${wordCount(selectedChapter().draft)} original words · ${wordCount(event.target.value)} improved words`; persist(); renderChapterRail(); };
   $$("[data-feedback-key]").forEach((field) => field.oninput = (event) => { selectedChapter().feedback[event.target.dataset.feedbackKey] = event.target.value; persist(); updateBrief(); });
   $("#generalFeedback").oninput = (event) => { selectedChapter().feedback.general = event.target.value; persist(); updateBrief(); };
+  $("#customFeedbackFocus").oninput = (event) => { selectedChapter().customFocus = event.target.value; persist(); updateBrief(); };
+  $("#authorDecision").oninput = (event) => { selectedChapter().authorDecision = event.target.value; persist(); updateBrief(); };
   $$('[data-editor-tab]').forEach((tab) => tab.onclick = () => switchEditor(tab.dataset.editorTab));
+}
+
+function renderEditingPlan() {
+  const chapter = selectedChapter();
+  if (!chapter) return;
+  $("#editingOptions").innerHTML = editingTypes.map(([key, label]) => `<label class="editing-option"><input type="checkbox" data-editing-type="${key}" ${chapter.editingTypes.includes(key) ? "checked" : ""}><span>${label}</span></label>`).join("");
+  $("#editingPasses").innerHTML = (chapter.editingPasses || []).map((pass, index) => `<div class="editing-pass" data-pass-index="${index}"><div class="editing-pass-head"><strong>Pass ${index + 1}</strong><button class="quiet-button" type="button" data-remove-pass="${index}">Remove</button></div><input class="text-input" data-pass-title="${index}" value="${escapeHtml(pass.title || "")}" placeholder="Name this pass, for example: strengthen the final scene"><textarea class="feedback-area" data-pass-notes="${index}" placeholder="What will you look for during this pass?">${escapeHtml(pass.notes || "")}</textarea></div>`).join("");
+  $$('[data-editing-type]').forEach((field) => field.onchange = (event) => { const types = new Set(selectedChapter().editingTypes || []); event.target.checked ? types.add(event.target.dataset.editingType) : types.delete(event.target.dataset.editingType); selectedChapter().editingTypes = [...types]; persist(); updateBrief(); });
+  $$('[data-pass-title]').forEach((field) => field.oninput = (event) => { selectedChapter().editingPasses[Number(event.target.dataset.passTitle)].title = event.target.value; persist(); updateBrief(); });
+  $$('[data-pass-notes]').forEach((field) => field.oninput = (event) => { selectedChapter().editingPasses[Number(event.target.dataset.passNotes)].notes = event.target.value; persist(); updateBrief(); });
+  $$('[data-remove-pass]').forEach((button) => button.onclick = () => { selectedChapter().editingPasses.splice(Number(button.dataset.removePass), 1); persist(); renderEditingPlan(); updateBrief(); });
 }
 
 function switchEditor(view) { $$('[data-editor-tab]').forEach((tab) => { const active = tab.dataset.editorTab === view; tab.classList.toggle("is-active", active); tab.setAttribute("aria-selected", String(active)); }); $$('[data-writing-panel]').forEach((panel) => { panel.hidden = panel.dataset.writingPanel !== view; panel.classList.toggle("is-active", panel.dataset.writingPanel === view); }); }
@@ -116,24 +151,58 @@ function switchEditor(view) { $$('[data-editor-tab]').forEach((tab) => { const a
 function updateBrief() {
   const chapter = selectedChapter(); if (!chapter) return;
   const filled = feedbackDefinitions.filter(([key]) => (chapter.feedback[key] || "").trim());
-  if (!filled.length && !(chapter.feedback.general || "").trim()) { $("#revisionBrief").textContent = "Add feedback above to create a focused revision brief."; return; }
+  if (!filled.length && !(chapter.feedback.general || "").trim() && !(chapter.customFocus || "").trim() && !(chapter.authorDecision || "").trim() && !(chapter.editingTypes || []).length && !(chapter.editingPasses || []).length) { $("#revisionBrief").textContent = "Add your own reader response above to create a focused revision brief."; return; }
   const lines = filled.map(([key, label]) => { const excerpt = chapter.feedback[key].trim().replace(/\s+/g, " "); return `${label}: ${excerpt.length > 180 ? `${excerpt.slice(0, 177)}...` : excerpt}`; });
-  $("#revisionBrief").textContent = `For ${chapter.title}, review the following before revising: ${lines.join(" ")}${chapter.feedback.general ? ` General note: ${chapter.feedback.general.trim().replace(/\s+/g, " ").slice(0, 240)}` : ""}`;
+  const chosen = (chapter.editingTypes || []).map((key) => editingTypes.find(([type]) => type === key)?.[1]).filter(Boolean);
+  const custom = chapter.customFocus ? ` Your requested focus: ${chapter.customFocus.trim().replace(/\s+/g, " ")}` : "";
+  const decision = chapter.authorDecision ? ` Your decision after reading: ${chapter.authorDecision.trim().replace(/\s+/g, " ")}` : "";
+  const passes = (chapter.editingPasses || []).map((pass) => pass.title).filter(Boolean).join(", ");
+  $("#revisionBrief").textContent = `For ${chapter.title}, keep your reader response in view while revising. ${lines.join(" ")}${chapter.feedback.general ? ` General note: ${chapter.feedback.general.trim().replace(/\s+/g, " ").slice(0, 240)}` : ""}${custom}${decision}${chosen.length ? ` Editing focus: ${chosen.join(", ")}.` : ""}${passes ? ` Planned passes: ${passes}.` : ""}`;
 }
 
 function downloadFile(filename, content, type = "text/plain") { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); setTimeout(() => URL.revokeObjectURL(url), 500); }
 function slug(value) { return (value || "manuscript").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "manuscript"; }
 function scopeChapter() { const scope = $("#exportScope"); return scope && scope.value === "current" ? selectedChapter() : null; }
-function feedbackMarkdown(chapter) { const lines = [`# Feedback report: ${state.title}`, "", `## ${chapter.title}`, "", `Original word count: ${wordCount(chapter.draft)}`, `Improved word count: ${wordCount(chapter.improved)}`, ""]; feedbackDefinitions.forEach(([key, label, question]) => { lines.push(`### ${label}`, "", `_${question}_`, "", chapter.feedback[key] || "No notes recorded.", ""); }); lines.push("### General feedback", "", chapter.feedback.general || "No general feedback recorded.", "", "### Revision status", "", chapter.improved !== chapter.draft ? "An improved version has been drafted in the workspace." : "No changes have been made to the improved version yet."); return lines.join("\n"); }
+function feedbackMarkdown(chapter) { const lines = [`# Feedback report: ${state.title}`, "", `## ${chapter.title}`, "", `Original word count: ${wordCount(chapter.draft)}`, `Improved word count: ${wordCount(chapter.improved)}`, ""]; feedbackDefinitions.forEach(([key, label, question]) => { lines.push(`### ${label}`, "", `_${question}_`, "", chapter.feedback[key] || "No notes recorded.", ""); }); lines.push("### General feedback", "", chapter.feedback.general || "No general feedback recorded.", "", "### Requested feedback focus", "", chapter.customFocus || "No extra focus recorded.", "", "### Author's decision after review", "", chapter.authorDecision || "No decision recorded yet.", "", "### Editing focus", "", (chapter.editingTypes || []).map((key) => editingTypes.find(([type]) => type === key)?.[1]).filter(Boolean).join(", ") || "No editing focus selected.", "", "### Planned editing passes", "", (chapter.editingPasses || []).map((pass, index) => `${index + 1}. ${pass.title || "Untitled pass"}${pass.notes ? `: ${pass.notes}` : ""}`).join("\n") || "No additional passes recorded.", "", "### Revision status", "", chapter.improved !== chapter.draft ? "An improved version has been drafted in the workspace." : "No changes have been made to the improved version yet."); return lines.join("\n"); }
 function allFeedbackMarkdown() { return [`# Feedback report: ${state.title}`, "", `Chapters reviewed: ${state.chapters.length}`, "", ...state.chapters.map(feedbackMarkdown)].join("\n\n---\n\n"); }
 function manuscriptText(chapter) { return chapter.improved || chapter.draft; }
 function allManuscriptText() { return state.chapters.map((chapter) => manuscriptText(chapter)).join("\n\n\n"); }
 
 function bindGlobalActions() {
   $("[data-create-project]").onclick = () => createProject($("#projectTitle").value, $("#manuscriptInput").value);
-  $("#fileInput").onchange = async (event) => { const file = event.target.files[0]; if (!file) return; const text = await file.text(); $("#projectTitle").value = file.name.replace(/\.[^.]+$/, ""); $("#manuscriptInput").value = text; showToast("File loaded. Create your workspace when ready."); };
+  const extractFileText = async (file) => {
+    const extension = file.name.split(".").pop().toLowerCase();
+    if (["txt", "md", "markdown", "html", "htm"].includes(extension)) return file.text();
+    if (extension === "docx") {
+      if (!window.mammoth) throw new Error("DOCX reader is still loading. Try again in a moment, or paste the text instead.");
+      const result = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+      return result.value;
+    }
+    if (extension === "pdf") {
+      if (!window.pdfjsLib) throw new Error("PDF reader is still loading. Try again in a moment, or paste the text instead.");
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+      const pages = [];
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const content = await page.getTextContent();
+        pages.push(content.items.map((item) => item.str).join(" "));
+      }
+      return pages.join("\n\n");
+    }
+    throw new Error("This file type is not supported yet. Please use TXT, Markdown, HTML, DOCX, or PDF.");
+  };
+  const loadFile = async (file) => { if (!file) return; showToast(`Reading ${file.name} in your browser...`); try { const text = await extractFileText(file); if (!text.trim()) throw new Error("No selectable text was found in this file."); $("#projectTitle").value = file.name.replace(/\.[^.]+$/, ""); $("#manuscriptInput").value = text; showToast("File loaded. Read it over, then create your workspace."); } catch (error) { showToast(error.message || "This file could not be read. Try copying its text into the manuscript box."); } };
+  $("#fileInput").onchange = (event) => loadFile(event.target.files[0]);
+  $("#dropZone").ondragover = (event) => { event.preventDefault(); $("#dropZone").classList.add("is-dragging"); };
+  $("#dropZone").ondragleave = () => $("#dropZone").classList.remove("is-dragging");
+  $("#dropZone").ondrop = (event) => { event.preventDefault(); $("#dropZone").classList.remove("is-dragging"); loadFile(event.dataTransfer.files[0]); };
+  $("#dropZone").onclick = () => $("#fileInput").click();
+  $("#dropZone").onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); $("#fileInput").click(); } };
+  $("[data-paste-clipboard]").onclick = async () => { try { const text = await navigator.clipboard.readText(); $("#manuscriptInput").value = text; showToast(text ? "Clipboard text added. Read it over before creating the workspace." : "Your clipboard is empty."); } catch (error) { showToast("Tap inside the manuscript box and paste normally. Your browser did not allow clipboard access."); $("#manuscriptInput").focus(); } };
   $("[data-new-project]").onclick = () => { if (confirm("Start a new project? Your current project will remain in this browser only if you have downloaded a backup.")) { state = { title: "", chapters: [], selectedId: null, updatedAt: null }; localStorage.removeItem(storageKey); $("#projectTitle").value = ""; $("#manuscriptInput").value = ""; renderApp(); $("#workspace").scrollIntoView({ behavior: "smooth" }); } };
-  $("[data-add-chapter]").onclick = () => { const chapter = { id: makeId(), title: `Chapter ${state.chapters.length + 1}`, draft: "", improved: "", feedback: defaultFeedback() }; state.chapters.push(chapter); state.selectedId = chapter.id; persist(); renderChapterRail(); renderCurrentChapter(); showToast("New chapter added."); };
+  $("[data-add-chapter]").onclick = () => { const chapter = defaultChapter(`Chapter ${state.chapters.length + 1}`, ""); chapter.improved = ""; state.chapters.push(chapter); state.selectedId = chapter.id; persist(); renderChapterRail(); renderCurrentChapter(); showToast("New chapter added."); };
+  $("[data-add-editing-pass]").onclick = () => { selectedChapter().editingPasses.push({ title: "", notes: "" }); persist(); renderEditingPlan(); updateBrief(); showToast("Another editing pass is ready."); };
   $("[data-delete-chapter]").onclick = () => { if (state.chapters.length === 1) { showToast("Keep at least one chapter in the workspace."); return; } if (!confirm("Delete this chapter and its feedback?")) return; state.chapters = state.chapters.filter((chapter) => chapter.id !== state.selectedId); state.selectedId = state.chapters[0].id; persist(); renderChapterRail(); renderCurrentChapter(); };
   $("[data-start-revision]").onclick = () => { const chapter = selectedChapter(); chapter.improved = chapter.draft; persist(); renderCurrentChapter(); switchEditor("improved"); showToast("Original draft copied into the improved version."); };
   $("[data-copy-brief]").onclick = async () => { const brief = $("#revisionBrief").textContent; try { await navigator.clipboard.writeText(brief); showToast("Revision brief copied."); } catch (error) { showToast("Select and copy the revision brief manually."); } };
