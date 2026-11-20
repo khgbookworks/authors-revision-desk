@@ -1,40 +1,43 @@
 const feedbackDefinitions = [
-  ["firstImpression", "First impression", "What did the chapter make you expect, feel, or wonder in its opening pages?", "Name the immediate reader response before explaining why."],
-  ["emotionalImpact", "Emotional impact", "Where did the chapter move you, unsettle you, or leave you emotionally distant?", "Look for feeling, not only whether the point was understood."],
-  ["characterDevelopment", "Character development", "What changed for the characters, and where did their choices feel earned or too convenient?", "For nonfiction, use this for real people, case studies, or the author's presence."],
-  ["patterns", "Patterns noticed", "What ideas, images, structures, or repeated habits became visible as you read?", "Patterns can reveal both the book's voice and its repetitions."],
-  ["plotPacing", "Plot and pacing", "Where did the chapter pull you forward, slow down, rush, or resolve tension too quickly?", "Nonfiction still needs movement, pressure, and a reason to continue."],
-  ["clarity", "Clarity", "What was clear, confusing, unsupported, or open to misinterpretation?", "Mark terms, claims, transitions, and missing context."],
-  ["readerExperience", "Overall reader experience", "What kind of reader will connect with this chapter, and what might make another reader hesitate?", "Include the honest experience of a supportive and skeptical reader."],
-  ["suggestions", "Suggestions for improvement", "What specific change would make the chapter more effective?", "Offer a move the author can actually make on the page."]
+  ["firstImpression", "First impression", "What did the opening make you expect, feel, or wonder?", "Start with the immediate reader response before explaining why."],
+  ["emotionalImpact", "Emotional impact", "Where did the chapter move you, unsettle you, or leave you distant?", "Name the feeling or the absence of feeling."],
+  ["characterDevelopment", "Character development", "What changed for the characters, and where did a choice feel earned or too convenient?", "For nonfiction, use this for the author's presence or the people in the story."],
+  ["patterns", "Patterns noticed", "What ideas, images, structures, or repeated habits became visible?", "Notice what the book returns to, on purpose or by accident."],
+  ["plotPacing", "Plot and pacing", "Where did the chapter pull you forward, slow down, rush, or resolve tension too quickly?", "Say where your attention changed."],
+  ["clarity", "Clarity", "What was clear, confusing, unsupported, or open to misinterpretation?", "Mark the moment rather than making a general complaint."],
+  ["readerExperience", "Overall reader experience", "What kind of reader will connect with this, and what might make another reader hesitate?", "Include the honest experience of a supportive and a skeptical reader."],
+  ["suggestions", "Suggestions for improvement", "What specific change might make the chapter more effective?", "Offer something the author can consider, not an instruction they must obey."]
 ];
 
-const editingTypes = [
-  ["developmental", "Developmental edit"],
-  ["structure", "Structure and chapter order"],
-  ["character", "Character and motivation"],
-  ["plot", "Plot, tension, and pacing"],
-  ["voice", "Voice and style"],
-  ["line", "Line edit"],
-  ["copy", "Copy edit and consistency"],
-  ["clarity", "Clarity and readability"],
-  ["continuity", "Continuity check"],
-  ["proofreading", "Proofreading"],
-  ["sensitivity", "Sensitivity and representation"]
+const suggestionTypes = [
+  ["developmental", "Look at the larger shape"],
+  ["structure", "Try a different order"],
+  ["character", "Look more closely at motivation"],
+  ["plot", "Build or hold the tension"],
+  ["voice", "Protect the voice while revising"],
+  ["clarity", "Make a moment easier to follow"],
+  ["continuity", "Check the thread across chapters"],
+  ["sensitivity", "Read the representation again"],
+  ["line", "Consider a line level pass"],
+  ["proofreading", "Save proofreading for the end"]
 ];
 
 const storageKey = "authors-revision-desk-project";
-const defaultFeedback = () => Object.fromEntries(feedbackDefinitions.map(([key]) => [key, ""]));
-const defaultChapter = (title, draft = "") => ({ id: makeId(), title, draft, improved: draft, feedback: defaultFeedback(), customFocus: "", authorDecision: "", editingTypes: [], editingPasses: [] });
+const formatterStorageKey = "authors-revision-desk-formatter";
 const makeId = () => `chapter-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-let state = loadState() || { title: "", chapters: [], selectedId: null, updatedAt: null };
-let saveTimer;
-
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
 const onboarding = $("#onboarding");
 const desk = $("#desk");
 const toast = $("#toast");
+
+const defaultFeedback = () => Object.fromEntries(feedbackDefinitions.map(([key]) => [key, ""]));
+const defaultChapter = (title, draft = "") => ({ id: makeId(), title, draft, improved: draft, feedback: defaultFeedback(), customFocus: "", authorDecision: "", suggestionTypes: [], editingPasses: [] });
+const defaultFormatter = () => ({ title: "", author: "", sourceText: "", settings: { bookType: "auto", trimSize: "6x9", font: "newsreader", chapterStyle: "classic", includeFrontMatter: true, includeToc: true, includePageNumbers: true } });
+
+let state = loadState() || { title: "", chapters: [], selectedId: null, updatedAt: null };
+let formatter = loadFormatterState();
+let saveTimer;
 
 function loadState() {
   try {
@@ -44,11 +47,11 @@ function loadState() {
       id: chapter.id || makeId(),
       title: chapter.title || "Untitled chapter",
       draft: typeof chapter.draft === "string" ? chapter.draft : "",
-      improved: typeof chapter.improved === "string" ? chapter.improved : "",
+      improved: typeof chapter.improved === "string" ? chapter.improved : (typeof chapter.draft === "string" ? chapter.draft : ""),
       feedback: { ...defaultFeedback(), ...(chapter.feedback || {}) },
       customFocus: typeof chapter.customFocus === "string" ? chapter.customFocus : "",
       authorDecision: typeof chapter.authorDecision === "string" ? chapter.authorDecision : "",
-      editingTypes: Array.isArray(chapter.editingTypes) ? chapter.editingTypes : [],
+      suggestionTypes: Array.isArray(chapter.suggestionTypes) ? chapter.suggestionTypes : (Array.isArray(chapter.editingTypes) ? chapter.editingTypes : []),
       editingPasses: Array.isArray(chapter.editingPasses) ? chapter.editingPasses : []
     }));
     return saved;
@@ -57,17 +60,36 @@ function loadState() {
   }
 }
 
+function loadFormatterState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(formatterStorageKey));
+    const base = defaultFormatter();
+    return saved ? { ...base, ...saved, settings: { ...base.settings, ...(saved.settings || {}) } } : base;
+  } catch (error) {
+    return defaultFormatter();
+  }
+}
+
 function persist(message = "Saved locally") {
   state.updatedAt = new Date().toISOString();
   try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (error) { message = "Saved for this session"; }
-  $("#savedState").textContent = message;
+  const savedState = $("#savedState");
+  if (savedState) savedState.textContent = message;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { $("#savedState").textContent = "Saved locally"; }, 1300);
+  saveTimer = setTimeout(() => { if (savedState) savedState.textContent = "Saved locally"; }, 1300);
+}
+
+function persistFormatter(message = "Saved locally") {
+  try { localStorage.setItem(formatterStorageKey, JSON.stringify(formatter)); } catch (error) { message = "Saved for this session"; }
+  const savedState = $("#formatSavedState");
+  if (savedState && !formatter.sourceText) savedState.textContent = message;
 }
 
 function wordCount(text = "") { return text.trim() ? text.trim().split(/\s+/).length : 0; }
-function escapeHtml(value = "") { return value.replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char])); }
-function showToast(message) { toast.textContent = message; toast.classList.add("is-visible"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove("is-visible"), 2600); }
+function escapeHtml(value = "") { return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char])); }
+function showToast(message) { toast.textContent = message; toast.classList.add("is-visible"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove("is-visible"), 3000); }
+function slug(value) { return (value || "manuscript").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "manuscript"; }
+function downloadFile(filename, content, type = "text/plain") { const blob = content instanceof Blob ? content : new Blob([content], { type }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 700); }
 
 function splitManuscript(text) {
   const normalized = text.replace(/\r\n/g, "\n").trim();
@@ -81,9 +103,7 @@ function splitManuscript(text) {
   matches.forEach((match, index) => {
     const start = match.index;
     const end = index + 1 < matches.length ? matches[index + 1].index : normalized.length;
-    const title = match[0].trim().replace(/\s+/g, " ");
-    const draft = normalized.slice(start, end).trim();
-    chapters.push(defaultChapter(title, draft));
+    chapters.push(defaultChapter(match[0].trim().replace(/\s+/g, " "), normalized.slice(start, end).trim()));
   });
   return chapters;
 }
@@ -92,17 +112,26 @@ function createProject(title, text) {
   const chapters = splitManuscript(text);
   if (!chapters.length) { showToast("Add some manuscript text first."); return; }
   state = { title: title.trim() || "Untitled manuscript", chapters, selectedId: chapters[0].id, updatedAt: null };
-  persist(); renderApp(); showToast(`${chapters.length} ${chapters.length === 1 ? "chapter" : "chapters"} ready to review.`); $("#workspace").scrollIntoView({ behavior: "smooth" });
+  persist();
+  renderApp();
+  showToast(`${chapters.length} ${chapters.length === 1 ? "chapter" : "chapters"} ready for a reader perspective.`);
+  $("#workspace").scrollIntoView({ behavior: "smooth" });
 }
 
 function selectedChapter() { return state.chapters.find((chapter) => chapter.id === state.selectedId) || state.chapters[0]; }
-function renderApp() { const hasProject = state.chapters.length > 0; onboarding.hidden = hasProject; desk.hidden = !hasProject; $("#workspaceHeading").textContent = hasProject ? state.title : "Start a new review"; if (hasProject) { renderChapterRail(); renderCurrentChapter(); } }
+function renderApp() {
+  const hasProject = state.chapters.length > 0;
+  onboarding.hidden = hasProject;
+  desk.hidden = !hasProject;
+  $("#workspaceHeading").textContent = hasProject ? state.title : "Start a new beta read";
+  if (hasProject) { renderChapterRail(); renderCurrentChapter(); }
+}
 
 function renderChapterRail() {
-  $("#chapterList").innerHTML = state.chapters.map((chapter, index) => `<button class="chapter-button ${chapter.id === state.selectedId ? "is-active" : ""}" type="button" data-chapter-id="${chapter.id}">${escapeHtml(chapter.title)}<small>${wordCount(chapter.improved || chapter.draft)} words${chapter.improved && chapter.improved !== chapter.draft ? " · revised" : ""}</small></button>`).join("");
+  $("#chapterList").innerHTML = state.chapters.map((chapter) => `<button class="chapter-button ${chapter.id === state.selectedId ? "is-active" : ""}" type="button" data-chapter-id="${escapeHtml(chapter.id)}">${escapeHtml(chapter.title)}<small>${wordCount(chapter.improved || chapter.draft)} words${chapter.improved && chapter.improved !== chapter.draft ? " · author copy" : ""}</small></button>`).join("");
   $("#chapterCount").textContent = `${state.chapters.length} ${state.chapters.length === 1 ? "chapter" : "chapters"}`;
-  const revised = state.chapters.filter((chapter) => chapter.improved && chapter.improved !== chapter.draft).length;
-  $("#completionCount").textContent = `${Math.round((revised / state.chapters.length) * 100)}% revised`;
+  const changed = state.chapters.filter((chapter) => chapter.improved && chapter.improved !== chapter.draft).length;
+  $("#completionCount").textContent = `${Math.round((changed / state.chapters.length) * 100)}% author copies changed`;
   $$('[data-chapter-id]').forEach((button) => button.addEventListener("click", () => { state.selectedId = button.dataset.chapterId; persist(); renderChapterRail(); renderCurrentChapter(); }));
 }
 
@@ -110,7 +139,7 @@ function renderCurrentChapter() {
   const chapter = selectedChapter();
   if (!chapter) return;
   $("#chapterHeading").textContent = chapter.title;
-  $("#chapterMeta").textContent = `${wordCount(chapter.draft)} original words · ${wordCount(chapter.improved)} improved words`;
+  $("#chapterMeta").textContent = `${wordCount(chapter.draft)} original words · ${wordCount(chapter.improved)} author copy words`;
   $("#draftText").value = chapter.draft;
   $("#improvedText").value = chapter.improved;
   $("#draftWords").textContent = `${wordCount(chapter.draft)} words`;
@@ -118,100 +147,292 @@ function renderCurrentChapter() {
   $("#generalFeedback").value = chapter.feedback.general || "";
   $("#customFeedbackFocus").value = chapter.customFocus || "";
   $("#authorDecision").value = chapter.authorDecision || "";
-  $("#feedbackFields").innerHTML = feedbackDefinitions.map(([key, label, question, help]) => `<div class="feedback-group"><label for="feedback-${key}">${label}</label><span class="feedback-help">${question}</span><textarea class="feedback-input" id="feedback-${key}" data-feedback-key="${key}" placeholder="Write detailed notes here..."></textarea></div>`).join("");
+  $("#feedbackFields").innerHTML = feedbackDefinitions.map(([key, label, question, help]) => `<div class="feedback-group"><label for="feedback-${key}">${label}</label><span class="feedback-help">${question}</span><span class="feedback-help feedback-human-help">${help}</span><textarea class="feedback-input" id="feedback-${key}" data-feedback-key="${key}" placeholder="Write what you actually noticed..."></textarea></div>`).join("");
   feedbackDefinitions.forEach(([key]) => { $(`#feedback-${key}`).value = chapter.feedback[key] || ""; });
-  renderEditingPlan();
-  updateBrief();
+  renderSuggestionPlan();
+  updateSuggestionBrief();
   bindCurrentChapter();
 }
 
 function bindCurrentChapter() {
-  $("#draftText").oninput = (event) => { selectedChapter().draft = event.target.value; $("#draftWords").textContent = `${wordCount(event.target.value)} words`; $("#chapterMeta").textContent = `${wordCount(event.target.value)} original words · ${wordCount(selectedChapter().improved)} improved words`; persist(); };
-  $("#improvedText").oninput = (event) => { selectedChapter().improved = event.target.value; $("#improvedWords").textContent = `${wordCount(event.target.value)} words`; $("#chapterMeta").textContent = `${wordCount(selectedChapter().draft)} original words · ${wordCount(event.target.value)} improved words`; persist(); renderChapterRail(); };
-  $$("[data-feedback-key]").forEach((field) => field.oninput = (event) => { selectedChapter().feedback[event.target.dataset.feedbackKey] = event.target.value; persist(); updateBrief(); });
-  $("#generalFeedback").oninput = (event) => { selectedChapter().feedback.general = event.target.value; persist(); updateBrief(); };
-  $("#customFeedbackFocus").oninput = (event) => { selectedChapter().customFocus = event.target.value; persist(); updateBrief(); };
-  $("#authorDecision").oninput = (event) => { selectedChapter().authorDecision = event.target.value; persist(); updateBrief(); };
+  $("#draftText").oninput = (event) => { selectedChapter().draft = event.target.value; $("#draftWords").textContent = `${wordCount(event.target.value)} words`; $("#chapterMeta").textContent = `${wordCount(event.target.value)} original words · ${wordCount(selectedChapter().improved)} author copy words`; persist(); };
+  $("#improvedText").oninput = (event) => { selectedChapter().improved = event.target.value; $("#improvedWords").textContent = `${wordCount(event.target.value)} words`; $("#chapterMeta").textContent = `${wordCount(selectedChapter().draft)} original words · ${wordCount(event.target.value)} author copy words`; persist(); renderChapterRail(); };
+  $$('[data-feedback-key]').forEach((field) => field.oninput = (event) => { selectedChapter().feedback[event.target.dataset.feedbackKey] = event.target.value; persist(); updateSuggestionBrief(); });
+  $("#generalFeedback").oninput = (event) => { selectedChapter().feedback.general = event.target.value; persist(); updateSuggestionBrief(); };
+  $("#customFeedbackFocus").oninput = (event) => { selectedChapter().customFocus = event.target.value; persist(); updateSuggestionBrief(); };
+  $("#authorDecision").oninput = (event) => { selectedChapter().authorDecision = event.target.value; persist(); updateSuggestionBrief(); };
   $$('[data-editor-tab]').forEach((tab) => tab.onclick = () => switchEditor(tab.dataset.editorTab));
 }
 
-function renderEditingPlan() {
+function renderSuggestionPlan() {
   const chapter = selectedChapter();
   if (!chapter) return;
-  $("#editingOptions").innerHTML = editingTypes.map(([key, label]) => `<label class="editing-option"><input type="checkbox" data-editing-type="${key}" ${chapter.editingTypes.includes(key) ? "checked" : ""}><span>${label}</span></label>`).join("");
-  $("#editingPasses").innerHTML = (chapter.editingPasses || []).map((pass, index) => `<div class="editing-pass" data-pass-index="${index}"><div class="editing-pass-head"><strong>Pass ${index + 1}</strong><button class="quiet-button" type="button" data-remove-pass="${index}">Remove</button></div><input class="text-input" data-pass-title="${index}" value="${escapeHtml(pass.title || "")}" placeholder="Name this pass, for example: strengthen the final scene"><textarea class="feedback-area" data-pass-notes="${index}" placeholder="What will you look for during this pass?">${escapeHtml(pass.notes || "")}</textarea></div>`).join("");
-  $$('[data-editing-type]').forEach((field) => field.onchange = (event) => { const types = new Set(selectedChapter().editingTypes || []); event.target.checked ? types.add(event.target.dataset.editingType) : types.delete(event.target.dataset.editingType); selectedChapter().editingTypes = [...types]; persist(); updateBrief(); });
-  $$('[data-pass-title]').forEach((field) => field.oninput = (event) => { selectedChapter().editingPasses[Number(event.target.dataset.passTitle)].title = event.target.value; persist(); updateBrief(); });
-  $$('[data-pass-notes]').forEach((field) => field.oninput = (event) => { selectedChapter().editingPasses[Number(event.target.dataset.passNotes)].notes = event.target.value; persist(); updateBrief(); });
-  $$('[data-remove-pass]').forEach((button) => button.onclick = () => { selectedChapter().editingPasses.splice(Number(button.dataset.removePass), 1); persist(); renderEditingPlan(); updateBrief(); });
+  $("#editingOptions").innerHTML = suggestionTypes.map(([key, label]) => `<label class="editing-option"><input type="checkbox" data-suggestion-type="${key}" ${chapter.suggestionTypes.includes(key) ? "checked" : ""}><span>${label}</span></label>`).join("");
+  $("#editingPasses").innerHTML = (chapter.editingPasses || []).map((pass, index) => `<div class="editing-pass" data-pass-index="${index}"><div class="editing-pass-head"><strong>Suggestion ${index + 1}</strong><button class="quiet-button" type="button" data-remove-pass="${index}">Remove</button></div><input class="text-input" data-pass-title="${index}" value="${escapeHtml(pass.title || "")}" placeholder="Name a possible change to consider"><textarea class="feedback-area" data-pass-notes="${index}" placeholder="Why might this help, and what would you want to protect?">${escapeHtml(pass.notes || "")}</textarea></div>`).join("");
+  $$('[data-suggestion-type]').forEach((field) => field.onchange = (event) => { const types = new Set(selectedChapter().suggestionTypes || []); event.target.checked ? types.add(event.target.dataset.suggestionType) : types.delete(event.target.dataset.suggestionType); selectedChapter().suggestionTypes = [...types]; persist(); updateSuggestionBrief(); });
+  $$('[data-pass-title]').forEach((field) => field.oninput = (event) => { selectedChapter().editingPasses[Number(event.target.dataset.passTitle)].title = event.target.value; persist(); updateSuggestionBrief(); });
+  $$('[data-pass-notes]').forEach((field) => field.oninput = (event) => { selectedChapter().editingPasses[Number(event.target.dataset.passNotes)].notes = event.target.value; persist(); updateSuggestionBrief(); });
+  $$('[data-remove-pass]').forEach((button) => button.onclick = () => { selectedChapter().editingPasses.splice(Number(button.dataset.removePass), 1); persist(); renderSuggestionPlan(); updateSuggestionBrief(); });
 }
 
-function switchEditor(view) { $$('[data-editor-tab]').forEach((tab) => { const active = tab.dataset.editorTab === view; tab.classList.toggle("is-active", active); tab.setAttribute("aria-selected", String(active)); }); $$('[data-writing-panel]').forEach((panel) => { panel.hidden = panel.dataset.writingPanel !== view; panel.classList.toggle("is-active", panel.dataset.writingPanel === view); }); }
+function switchEditor(view) {
+  $$('[data-editor-tab]').forEach((tab) => { const active = tab.dataset.editorTab === view; tab.classList.toggle("is-active", active); tab.setAttribute("aria-selected", String(active)); });
+  $$('[data-writing-panel]').forEach((panel) => { panel.hidden = panel.dataset.writingPanel !== view; panel.classList.toggle("is-active", panel.dataset.writingPanel === view); });
+}
 
-function updateBrief() {
-  const chapter = selectedChapter(); if (!chapter) return;
+function updateSuggestionBrief() {
+  const chapter = selectedChapter();
+  if (!chapter) return;
   const filled = feedbackDefinitions.filter(([key]) => (chapter.feedback[key] || "").trim());
-  if (!filled.length && !(chapter.feedback.general || "").trim() && !(chapter.customFocus || "").trim() && !(chapter.authorDecision || "").trim() && !(chapter.editingTypes || []).length && !(chapter.editingPasses || []).length) { $("#revisionBrief").textContent = "Add your own reader response above to create a focused revision brief."; return; }
-  const lines = filled.map(([key, label]) => { const excerpt = chapter.feedback[key].trim().replace(/\s+/g, " "); return `${label}: ${excerpt.length > 180 ? `${excerpt.slice(0, 177)}...` : excerpt}`; });
-  const chosen = (chapter.editingTypes || []).map((key) => editingTypes.find(([type]) => type === key)?.[1]).filter(Boolean);
-  const custom = chapter.customFocus ? ` Your requested focus: ${chapter.customFocus.trim().replace(/\s+/g, " ")}` : "";
-  const decision = chapter.authorDecision ? ` Your decision after reading: ${chapter.authorDecision.trim().replace(/\s+/g, " ")}` : "";
-  const passes = (chapter.editingPasses || []).map((pass) => pass.title).filter(Boolean).join(", ");
-  $("#revisionBrief").textContent = `For ${chapter.title}, keep your reader response in view while revising. ${lines.join(" ")}${chapter.feedback.general ? ` General note: ${chapter.feedback.general.trim().replace(/\s+/g, " ").slice(0, 240)}` : ""}${custom}${decision}${chosen.length ? ` Editing focus: ${chosen.join(", ")}.` : ""}${passes ? ` Planned passes: ${passes}.` : ""}`;
+  const hasAny = filled.length || (chapter.feedback.general || "").trim() || (chapter.customFocus || "").trim() || (chapter.authorDecision || "").trim() || (chapter.suggestionTypes || []).length || (chapter.editingPasses || []).length;
+  if (!hasAny) { $("#revisionBrief").textContent = "Add your own reader response above to create a clear suggestion brief."; return; }
+  const observations = filled.map(([key, label]) => { const excerpt = chapter.feedback[key].trim().replace(/\s+/g, " "); return `${label.toLowerCase()}: ${excerpt.length > 180 ? `${excerpt.slice(0, 177)}...` : excerpt}`; });
+  const selected = (chapter.suggestionTypes || []).map((key) => suggestionTypes.find(([type]) => type === key)?.[1]).filter(Boolean);
+  const parts = [];
+  if (observations.length) parts.push(`As a reader, I noticed ${observations.join(" ")}`);
+  if (chapter.feedback.general) parts.push(`The wider feeling was: ${chapter.feedback.general.trim().replace(/\s+/g, " ").slice(0, 260)}`);
+  if (chapter.customFocus) parts.push(`The requested focus is ${chapter.customFocus.trim().replace(/\s+/g, " ")}`);
+  if (selected.length) parts.push(`Possible things to consider are ${selected.join(", ")}`);
+  if (chapter.editingPasses?.some((pass) => pass.title)) parts.push(`The reader also noted these possible passes: ${chapter.editingPasses.map((pass) => pass.title).filter(Boolean).join(", ")}`);
+  if (chapter.authorDecision) parts.push(`The author's decision after reading is ${chapter.authorDecision.trim().replace(/\s+/g, " ")}`);
+  $("#revisionBrief").textContent = `${parts.join(". ")}. These are suggestions to sit with, not instructions and not changes to the manuscript.`;
 }
 
-function downloadFile(filename, content, type = "text/plain") { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); setTimeout(() => URL.revokeObjectURL(url), 500); }
-function slug(value) { return (value || "manuscript").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "manuscript"; }
-function scopeChapter() { const scope = $("#exportScope"); return scope && scope.value === "current" ? selectedChapter() : null; }
-function feedbackMarkdown(chapter) { const lines = [`# Feedback report: ${state.title}`, "", `## ${chapter.title}`, "", `Original word count: ${wordCount(chapter.draft)}`, `Improved word count: ${wordCount(chapter.improved)}`, ""]; feedbackDefinitions.forEach(([key, label, question]) => { lines.push(`### ${label}`, "", `_${question}_`, "", chapter.feedback[key] || "No notes recorded.", ""); }); lines.push("### General feedback", "", chapter.feedback.general || "No general feedback recorded.", "", "### Requested feedback focus", "", chapter.customFocus || "No extra focus recorded.", "", "### Author's decision after review", "", chapter.authorDecision || "No decision recorded yet.", "", "### Editing focus", "", (chapter.editingTypes || []).map((key) => editingTypes.find(([type]) => type === key)?.[1]).filter(Boolean).join(", ") || "No editing focus selected.", "", "### Planned editing passes", "", (chapter.editingPasses || []).map((pass, index) => `${index + 1}. ${pass.title || "Untitled pass"}${pass.notes ? `: ${pass.notes}` : ""}`).join("\n") || "No additional passes recorded.", "", "### Revision status", "", chapter.improved !== chapter.draft ? "An improved version has been drafted in the workspace." : "No changes have been made to the improved version yet."); return lines.join("\n"); }
-function allFeedbackMarkdown() { return [`# Feedback report: ${state.title}`, "", `Chapters reviewed: ${state.chapters.length}`, "", ...state.chapters.map(feedbackMarkdown)].join("\n\n---\n\n"); }
+function switchView(view) {
+  $$(".app-view").forEach((section) => { section.hidden = section.dataset.view !== view; });
+  $$('[data-view-switch]').forEach((button) => { if (button.matches("button")) { const active = button.dataset.viewSwitch === view; button.classList.toggle("is-active", active); button.setAttribute("aria-selected", String(active)); } });
+  if (view === "formatter") renderFormatter();
+}
+
+function feedbackMarkdown(chapter) {
+  const lines = [`# Reader feedback: ${state.title}`, "", `## ${chapter.title}`, "", "This is reader perspective and suggestion only. No feedback in this report has been applied to the manuscript.", "", `Original word count: ${wordCount(chapter.draft)}`, `Author's copy word count: ${wordCount(chapter.improved)}`, ""];
+  feedbackDefinitions.forEach(([key, label, question]) => { lines.push(`### ${label}`, "", `_${question}_`, "", chapter.feedback[key] || "No reader note recorded.", ""); });
+  lines.push("### General reader letter", "", chapter.feedback.general || "No general reader letter recorded.", "", "### Requested feedback focus", "", chapter.customFocus || "No extra focus recorded.", "", "### Author's decision after review", "", chapter.authorDecision || "No decision recorded yet.", "", "### Possible next steps", "", (chapter.suggestionTypes || []).map((key) => suggestionTypes.find(([type]) => type === key)?.[1]).filter(Boolean).join(", ") || "No next step selected.", "", "### Reader suggested passes", "", (chapter.editingPasses || []).map((pass, index) => `${index + 1}. ${pass.title || "Untitled suggestion"}${pass.notes ? `: ${pass.notes}` : ""}`).join("\n") || "No additional suggestions recorded.", "", "### Manuscript status", "", "The source wording remains separate. Any author copy changes are author controlled.");
+  return lines.join("\n");
+}
+function allFeedbackMarkdown() { return [`# Reader feedback: ${state.title}`, "", "This report contains reader perspective and suggestions only. It does not rewrite the manuscript.", "", ...state.chapters.map(feedbackMarkdown)].join("\n\n---\n\n"); }
 function manuscriptText(chapter) { return chapter.improved || chapter.draft; }
 function allManuscriptText() { return state.chapters.map((chapter) => manuscriptText(chapter)).join("\n\n\n"); }
+function scopeChapter() { const scope = $("#exportScope"); return scope && scope.value === "current" ? selectedChapter() : null; }
+
+async function extractFileText(file) {
+  const extension = file.name.split(".").pop().toLowerCase();
+  if (["txt", "md", "markdown"].includes(extension)) return file.text();
+  if (["html", "htm"].includes(extension)) {
+    const raw = await file.text();
+    const doc = new DOMParser().parseFromString(raw, "text/html");
+    return doc.body?.innerText || doc.documentElement.innerText || raw;
+  }
+  if (extension === "docx") {
+    if (!window.mammoth) throw new Error("DOCX reader is still loading. Try again in a moment, or paste the text instead.");
+    const result = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return result.value;
+  }
+  if (extension === "pdf") {
+    if (!window.pdfjsLib) throw new Error("PDF reader is still loading. Try again in a moment, or paste the text instead.");
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const pages = [];
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      pages.push(content.items.map((item) => item.str).join(" "));
+    }
+    return pages.join("\n\n");
+  }
+  throw new Error("Please use TXT, Markdown, HTML, DOCX, or PDF.");
+}
+
+async function readFileInto(file, target, titleTarget, statusMessage = "File loaded.") {
+  if (!file) return;
+  showToast(`Reading ${file.name} in your browser...`);
+  try {
+    const text = await extractFileText(file);
+    if (!text.trim()) throw new Error("No selectable text was found in this file.");
+    target.value = text;
+    if (titleTarget && !titleTarget.value.trim()) titleTarget.value = file.name.replace(/\.[^.]+$/, "");
+    if (statusMessage) showToast(statusMessage);
+    return text;
+  } catch (error) {
+    showToast(error.message || "This file could not be read. Try copying its text into the editor.");
+    return "";
+  }
+}
 
 function bindGlobalActions() {
   $("[data-create-project]").onclick = () => createProject($("#projectTitle").value, $("#manuscriptInput").value);
-  const extractFileText = async (file) => {
-    const extension = file.name.split(".").pop().toLowerCase();
-    if (["txt", "md", "markdown", "html", "htm"].includes(extension)) return file.text();
-    if (extension === "docx") {
-      if (!window.mammoth) throw new Error("DOCX reader is still loading. Try again in a moment, or paste the text instead.");
-      const result = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
-      return result.value;
-    }
-    if (extension === "pdf") {
-      if (!window.pdfjsLib) throw new Error("PDF reader is still loading. Try again in a moment, or paste the text instead.");
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-      const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-      const pages = [];
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-        const page = await pdf.getPage(pageNumber);
-        const content = await page.getTextContent();
-        pages.push(content.items.map((item) => item.str).join(" "));
-      }
-      return pages.join("\n\n");
-    }
-    throw new Error("This file type is not supported yet. Please use TXT, Markdown, HTML, DOCX, or PDF.");
-  };
-  const loadFile = async (file) => { if (!file) return; showToast(`Reading ${file.name} in your browser...`); try { const text = await extractFileText(file); if (!text.trim()) throw new Error("No selectable text was found in this file."); $("#projectTitle").value = file.name.replace(/\.[^.]+$/, ""); $("#manuscriptInput").value = text; showToast("File loaded. Read it over, then create your workspace."); } catch (error) { showToast(error.message || "This file could not be read. Try copying its text into the manuscript box."); } };
-  $("#fileInput").onchange = (event) => loadFile(event.target.files[0]);
+  $("#fileInput").onchange = (event) => readFileInto(event.target.files[0], $("#manuscriptInput"), $("#projectTitle"), "File loaded. Read it over, then open the beta reading desk.");
   $("#dropZone").ondragover = (event) => { event.preventDefault(); $("#dropZone").classList.add("is-dragging"); };
   $("#dropZone").ondragleave = () => $("#dropZone").classList.remove("is-dragging");
-  $("#dropZone").ondrop = (event) => { event.preventDefault(); $("#dropZone").classList.remove("is-dragging"); loadFile(event.dataTransfer.files[0]); };
+  $("#dropZone").ondrop = (event) => { event.preventDefault(); $("#dropZone").classList.remove("is-dragging"); readFileInto(event.dataTransfer.files[0], $("#manuscriptInput"), $("#projectTitle"), "File loaded. Read it over, then open the beta reading desk."); };
   $("#dropZone").onclick = () => $("#fileInput").click();
   $("#dropZone").onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); $("#fileInput").click(); } };
-  $("[data-paste-clipboard]").onclick = async () => { try { const text = await navigator.clipboard.readText(); $("#manuscriptInput").value = text; showToast(text ? "Clipboard text added. Read it over before creating the workspace." : "Your clipboard is empty."); } catch (error) { showToast("Tap inside the manuscript box and paste normally. Your browser did not allow clipboard access."); $("#manuscriptInput").focus(); } };
-  $("[data-new-project]").onclick = () => { if (confirm("Start a new project? Your current project will remain in this browser only if you have downloaded a backup.")) { state = { title: "", chapters: [], selectedId: null, updatedAt: null }; localStorage.removeItem(storageKey); $("#projectTitle").value = ""; $("#manuscriptInput").value = ""; renderApp(); $("#workspace").scrollIntoView({ behavior: "smooth" }); } };
-  $("[data-add-chapter]").onclick = () => { const chapter = defaultChapter(`Chapter ${state.chapters.length + 1}`, ""); chapter.improved = ""; state.chapters.push(chapter); state.selectedId = chapter.id; persist(); renderChapterRail(); renderCurrentChapter(); showToast("New chapter added."); };
-  $("[data-add-editing-pass]").onclick = () => { selectedChapter().editingPasses.push({ title: "", notes: "" }); persist(); renderEditingPlan(); updateBrief(); showToast("Another editing pass is ready."); };
-  $("[data-delete-chapter]").onclick = () => { if (state.chapters.length === 1) { showToast("Keep at least one chapter in the workspace."); return; } if (!confirm("Delete this chapter and its feedback?")) return; state.chapters = state.chapters.filter((chapter) => chapter.id !== state.selectedId); state.selectedId = state.chapters[0].id; persist(); renderChapterRail(); renderCurrentChapter(); };
-  $("[data-start-revision]").onclick = () => { const chapter = selectedChapter(); chapter.improved = chapter.draft; persist(); renderCurrentChapter(); switchEditor("improved"); showToast("Original draft copied into the improved version."); };
-  $("[data-copy-brief]").onclick = async () => { const brief = $("#revisionBrief").textContent; try { await navigator.clipboard.writeText(brief); showToast("Revision brief copied."); } catch (error) { showToast("Select and copy the revision brief manually."); } };
-  $("[data-download-feedback]").onclick = () => { const current = scopeChapter(); const content = current ? feedbackMarkdown(current) : allFeedbackMarkdown(); downloadFile(`${slug(state.title)}-feedback${current ? `-${slug(current.title)}` : ""}.md`, content, "text/markdown"); showToast("Feedback download started."); };
+  $("[data-paste-clipboard]").onclick = async () => { try { const text = await navigator.clipboard.readText(); $("#manuscriptInput").value = text; showToast(text ? "Clipboard text added. Read it over before opening the desk." : "Your clipboard is empty."); } catch (error) { showToast("Tap inside the manuscript box and paste normally. Your browser did not allow clipboard access."); $("#manuscriptInput").focus(); } };
+  $("[data-new-project]").onclick = () => { if (confirm("Start a new beta reading project? Download a backup first if you want to keep this one.")) { state = { title: "", chapters: [], selectedId: null, updatedAt: null }; localStorage.removeItem(storageKey); $("#projectTitle").value = ""; $("#manuscriptInput").value = ""; renderApp(); $("#workspace").scrollIntoView({ behavior: "smooth" }); } };
+  $("[data-add-chapter]").onclick = () => { const chapter = defaultChapter(`Chapter ${state.chapters.length + 1}`, ""); chapter.improved = ""; state.chapters.push(chapter); state.selectedId = chapter.id; persist(); renderChapterRail(); renderCurrentChapter(); showToast("New chapter added for reader notes."); };
+  $("[data-add-editing-pass]").onclick = () => { selectedChapter().editingPasses.push({ title: "", notes: "" }); persist(); renderSuggestionPlan(); updateSuggestionBrief(); showToast("Another suggestion space is ready."); };
+  $("[data-delete-chapter]").onclick = () => { if (state.chapters.length === 1) { showToast("Keep at least one chapter in the workspace."); return; } if (!confirm("Delete this chapter and its reader notes?")) return; state.chapters = state.chapters.filter((chapter) => chapter.id !== state.selectedId); state.selectedId = state.chapters[0].id; persist(); renderChapterRail(); renderCurrentChapter(); };
+  $("[data-start-revision]").onclick = () => { const chapter = selectedChapter(); if (!chapter.improved) chapter.improved = chapter.draft; persist(); renderCurrentChapter(); switchEditor("improved"); showToast("Author copy opened. No reader suggestion was applied."); };
+  $("[data-copy-brief]").onclick = async () => { const brief = $("#revisionBrief").textContent; try { await navigator.clipboard.writeText(brief); showToast("Reader suggestion brief copied."); } catch (error) { showToast("Select and copy the reader suggestion brief manually."); } };
+  $("[data-download-feedback]").onclick = () => { const current = scopeChapter(); const content = current ? feedbackMarkdown(current) : allFeedbackMarkdown(); downloadFile(`${slug(state.title)}-reader-feedback${current ? `-${slug(current.title)}` : ""}.md`, content, "text/markdown"); showToast("Reader feedback download started."); };
   $("[data-download-project]").onclick = () => { downloadFile(`${slug(state.title)}-project-backup.json`, JSON.stringify(state, null, 2), "application/json"); showToast("Project backup download started."); };
-  $("[data-scroll-workspace]").onclick = () => $("#workspace").scrollIntoView({ behavior: "smooth" });
-  const exportSelect = document.createElement("select"); exportSelect.id = "exportScope"; exportSelect.className = "export-scope"; exportSelect.innerHTML = `<option value="all">Whole manuscript</option><option value="current">Current chapter</option>`; const exportButton = document.createElement("button"); exportButton.type = "button"; exportButton.className = "button button-quiet"; exportButton.textContent = "Download improved manuscript"; exportButton.onclick = () => { const current = scopeChapter(); const content = current ? manuscriptText(current) : allManuscriptText(); downloadFile(`${slug(state.title)}-improved${current ? `-${slug(current.title)}` : ""}.txt`, content); showToast("Improved manuscript download started."); }; $(".feedback-actions").append(exportSelect, exportButton);
-  const menuButton = $("[data-mobile-menu]"); menuButton.onclick = () => { const open = menuButton.getAttribute("aria-expanded") === "true"; menuButton.setAttribute("aria-expanded", String(!open)); $(".top-nav").classList.toggle("is-open", !open); menuButton.setAttribute("aria-label", open ? "Open navigation" : "Close navigation"); }; $$(".top-nav a").forEach((link) => link.onclick = () => { menuButton.setAttribute("aria-expanded", "false"); $(".top-nav").classList.remove("is-open"); }); document.addEventListener("keydown", (event) => { if (event.key === "Escape" && menuButton.getAttribute("aria-expanded") === "true") { menuButton.click(); menuButton.focus(); } });
+  const exportSelect = document.createElement("select"); exportSelect.id = "exportScope"; exportSelect.className = "export-scope"; exportSelect.innerHTML = `<option value="all">Whole manuscript</option><option value="current">Current chapter</option>`;
+  const exportButton = document.createElement("button"); exportButton.type = "button"; exportButton.className = "button button-quiet"; exportButton.textContent = "Download author copy"; exportButton.onclick = () => { const current = scopeChapter(); const content = current ? manuscriptText(current) : allManuscriptText(); downloadFile(`${slug(state.title)}-author-copy${current ? `-${slug(current.title)}` : ""}.txt`, content); showToast("Author copy download started."); };
+  $(".feedback-actions").append(exportSelect, exportButton);
+
+  $$("[data-view-switch]").forEach((button) => button.addEventListener("click", () => { const view = button.dataset.viewSwitch; history.replaceState(null, "", view === "formatter" ? "#formatter" : "#workspace"); switchView(view); if (view === "beta") $("#workspace").scrollIntoView({ behavior: "smooth" }); else $("#formatter").scrollIntoView({ behavior: "smooth" }); }));
+  $$("[data-view-link]").forEach((link) => link.addEventListener("click", () => { const view = link.dataset.viewLink; setTimeout(() => switchView(view), 0); }));
+  const menuButton = $("[data-mobile-menu]");
+  menuButton.onclick = () => { const open = menuButton.getAttribute("aria-expanded") === "true"; menuButton.setAttribute("aria-expanded", String(!open)); $(".top-nav").classList.toggle("is-open", !open); menuButton.setAttribute("aria-label", open ? "Open navigation" : "Close navigation"); };
+  $$(".top-nav a").forEach((link) => link.onclick = () => { menuButton.setAttribute("aria-expanded", "false"); $(".top-nav").classList.remove("is-open"); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape" && menuButton.getAttribute("aria-expanded") === "true") { menuButton.click(); menuButton.focus(); } });
+
+  bindFormatterActions();
+}
+
+function recommendBookType(text) {
+  const lower = text.toLowerCase();
+  const lines = text.split("\n").filter((line) => line.trim());
+  const shortLineRatio = lines.length ? lines.filter((line) => line.trim().split(/\s+/).length <= 8).length / lines.length : 0;
+  if (shortLineRatio > 0.62 && lines.length > 12) return "poetry";
+  if (/workbook|exercise|journal prompt|fill in|reflection question|worksheet/.test(lower)) return "workbook";
+  if (/memoir|my childhood|when i was|my mother|my father/.test(lower)) return "memoir";
+  if (/research|chapter summary|references|bibliography|methodology|according to/.test(lower)) return "nonfiction";
+  return "novel";
+}
+
+function effectiveBookType() { return formatter.settings.bookType === "auto" ? recommendBookType(formatter.sourceText) : formatter.settings.bookType; }
+function typeLabel(type) { return ({ novel: "fiction or novel", memoir: "memoir or personal narrative", nonfiction: "general nonfiction", poetry: "poetry or prose poetry", workbook: "workbook or guided journal" }[type] || type); }
+function trimDimensions(trimSize) { return ({ "6x9": [6, 9], "5.5x8.5": [5.5, 8.5], a5: [5.83, 8.27], "8.5x11": [8.5, 11] }[trimSize] || [6, 9]); }
+function formatFont(font) { return ({ newsreader: "Newsreader, Georgia, serif", georgia: "Georgia, serif", palatino: "Palatino, 'Book Antiqua', serif", sans: "'DM Sans', Arial, sans-serif" }[font] || "Georgia, serif"); }
+function formatTitleForExport() { return formatter.title.trim() || "Untitled book"; }
+
+function updateFormatterRecommendation() {
+  const recommendation = $("#formatRecommendation");
+  if (!formatter.sourceText) { recommendation.textContent = "The formatter will suggest a professional default after the book is loaded."; return; }
+  const type = recommendBookType(formatter.sourceText);
+  recommendation.textContent = formatter.settings.bookType === "auto" ? `Based on the shape of this manuscript, a ${typeLabel(type)} treatment is a sensible starting point. You can change it.` : `You chose a ${typeLabel(formatter.settings.bookType)} treatment. Change it whenever the book asks for something else.`;
+}
+
+const formatterFieldMap = { bookType: "bookType", trimSize: "trimSize", font: "formatFont", chapterStyle: "chapterStyle", includeFrontMatter: "includeFrontMatter", includeToc: "includeToc", includePageNumbers: "includePageNumbers" };
+
+function renderFormatter() {
+  $("#formatTitle").value = formatter.title;
+  $("#formatAuthor").value = formatter.author;
+  Object.entries(formatter.settings).forEach(([key, value]) => { const field = $(`#${formatterFieldMap[key] || key}`); if (field) field.type === "checkbox" ? field.checked = Boolean(value) : field.value = value; });
+  $("#formatSourceStatus").textContent = formatter.sourceText ? `${wordCount(formatter.sourceText)} words loaded locally.` : "No finished manuscript loaded yet.";
+  updateFormatterRecommendation();
+  if (formatter.sourceText) renderFormattedPreview();
+}
+
+function formattedSections() {
+  const chapters = splitManuscript(formatter.sourceText).map((chapter, index) => ({ ...chapter, title: chapter.title || `Section ${index + 1}` }));
+  return chapters.length ? chapters : [{ title: "Manuscript", draft: formatter.sourceText }];
+}
+
+function textBlocksHtml(text, type) {
+  const safe = text.trim();
+  if (!safe) return "";
+  if (type === "poetry") return safe.split("\n").map((line) => `<div class="poem-line">${escapeHtml(line) || "&nbsp;"}</div>`).join("");
+  const blocks = safe.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
+  return blocks.map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br>")}</p>`).join("");
+}
+
+function formatBookMarkup(includeDocument = false) {
+  const type = effectiveBookType();
+  const settings = formatter.settings;
+  const sections = formattedSections();
+  const title = escapeHtml(formatTitleForExport());
+  const author = escapeHtml(formatter.author.trim());
+  const chapterClass = settings.chapterStyle === "minimal" ? "chapter-minimal" : settings.chapterStyle === "numbered" ? "chapter-numbered" : settings.chapterStyle === "poetry" ? "chapter-poetry" : "chapter-classic";
+  const frontMatter = settings.includeFrontMatter ? `<section class="title-page"><h1>${title}</h1>${author ? `<p class="book-author">${author}</p>` : ""}</section>` : "";
+  const toc = settings.includeToc && sections.length > 1 ? `<section class="contents"><h2>Contents</h2><ol>${sections.map((chapter) => `<li>${escapeHtml(chapter.title)}</li>`).join("")}</ol></section>` : "";
+  const body = sections.map((chapter, index) => `<section class="book-chapter ${chapterClass}"><h2>${settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2><div class="chapter-text">${textBlocksHtml(chapter.draft, type)}</div></section>`).join("");
+  const inner = `<div class="format-book format-${type}" data-trim="${settings.trimSize}">${frontMatter}${toc}${body}</div>`;
+  if (!includeDocument) return inner;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${formatBookCss()}</style></head><body>${inner}</body></html>`;
+}
+
+function formatBookCss() {
+  const type = effectiveBookType();
+  const settings = formatter.settings;
+  return `@page{size:${trimDimensions(settings.trimSize).join("in ")}in;margin:.7in${settings.includePageNumbers ? ";@bottom-center{content:counter(page);font:8pt Arial;color:#8b918c}" : ""}}*{box-sizing:border-box}body{margin:0;background:#f3efe6;color:#202c28;font-family:${formatFont(settings.font)};font-size:11.5pt;line-height:${type === "poetry" ? "1.65" : "1.55"}}.format-book{max-width:6.8in;margin:0 auto;background:#fffdf8;padding:0 .48in ${settings.includePageNumbers ? "1.1in" : ".7in"};min-height:9in}.title-page{min-height:8.2in;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;page-break-after:always}.title-page h1{font-size:31pt;font-weight:400;line-height:1.12;margin:0 0 .35in}.book-author{font-family:Arial,sans-serif;font-size:10pt;letter-spacing:.12em;text-transform:uppercase}.contents{page-break-after:always;padding-top:.7in}.contents h2{font-size:18pt;font-weight:400}.contents ol{padding-left:1.2em;line-height:2}.book-chapter{page-break-before:always;padding-top:${settings.chapterStyle === "minimal" ? ".25in" : ".75in"}}.title-page+.contents+.book-chapter,.title-page+.book-chapter,.contents+.book-chapter{page-break-before:avoid}.book-chapter h2{font-size:${settings.chapterStyle === "minimal" ? "17pt" : "22pt"};font-weight:400;line-height:1.1;margin:0 0 .42in;text-align:${settings.chapterStyle === "minimal" ? "left" : "center"}}.chapter-numbered h2{font-size:19pt}.chapter-text p{margin:0 0 .18in;text-indent:${type === "workbook" ? "0" : ".22in"}}.chapter-text p:first-child{text-indent:0}.poem-line{min-height:1.65em}.chapter-poetry h2{text-align:left}.format-book:after{content:"";display:block;position:fixed;bottom:.35in;left:0;right:0;text-align:center;color:#8b918c;font:8pt Arial,sans-serif}`;
+}
+
+function renderFormattedPreview() {
+  const preview = $("#formattedPreview");
+  if (!formatter.sourceText) { preview.hidden = true; $("#formatPlaceholder").hidden = false; $("#formatterActions").hidden = true; return; }
+  preview.innerHTML = formatBookMarkup(false);
+  preview.hidden = false;
+  $("#formatPlaceholder").hidden = true;
+  $("#formatterActions").hidden = false;
+  $("#formatSavedState").textContent = "Preview ready";
+  preview.style.setProperty("--format-font", formatFont(formatter.settings.font));
+  preview.classList.toggle("is-poetry", effectiveBookType() === "poetry");
+}
+
+function updateFormatterPreview() { persistFormatter(); updateFormatterRecommendation(); if (formatter.sourceText) renderFormattedPreview(); }
+
+async function exportEpub() {
+  if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; }
+  if (!window.JSZip) { showToast("EPUB helper is still loading. Try again in a moment."); return; }
+  const zip = new window.JSZip();
+  const title = formatTitleForExport();
+  const author = formatter.author.trim() || "Author";
+  const sections = formattedSections();
+  const body = sections.map((chapter, index) => `<section epub:type="chapter" id="chapter-${index + 1}"><h2>${formatter.settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2>${textBlocksHtml(chapter.draft, effectiveBookType())}</section>`).join("");
+  const xhtml = `<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title><link rel="stylesheet" type="text/css" href="styles.css"/></head><body><h1>${escapeHtml(title)}</h1>${author ? `<p class="author">${escapeHtml(author)}</p>` : ""}${body}</body></html>`;
+  const css = `body{font-family:Georgia,serif;line-height:1.55;margin:5%}h1{text-align:center;font-weight:400;margin:20% 0 10%}.author{text-align:center;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.12em}section{page-break-before:always;margin-top:10%}h2{font-weight:400}p{text-indent:1em;margin:0 0 .8em}`;
+  const manifest = `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:uuid:${makeId()}</dc:identifier><dc:title>${escapeHtml(title)}</dc:title><dc:language>en</dc:language><dc:creator>${escapeHtml(author)}</dc:creator></metadata><manifest><item id="content" href="content.xhtml" media-type="application/xhtml+xml"/><item id="styles" href="styles.css" media-type="text/css"/></manifest><spine><itemref idref="content"/></spine></package>`;
+  zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+  zip.file("META-INF/container.xml", `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
+  zip.file("OEBPS/content.xhtml", xhtml); zip.file("OEBPS/styles.css", css); zip.file("OEBPS/content.opf", manifest);
+  const blob = await zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
+  downloadFile(`${slug(title)}.epub`, blob); showToast("EPUB download started.");
+}
+
+function exportDoc() { if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; } downloadFile(`${slug(formatTitleForExport())}.doc`, formatBookMarkup(true), "application/msword"); showToast("DOC download started."); }
+function exportHtml() { if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; } downloadFile(`${slug(formatTitleForExport())}.html`, formatBookMarkup(true), "text/html"); showToast("HTML download started."); }
+async function exportPdf() {
+  if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; }
+  if (window.html2pdf) {
+    const [width, height] = trimDimensions(formatter.settings.trimSize);
+    try { await window.html2pdf().set({ margin: 0.35, filename: `${slug(formatTitleForExport())}.pdf`, image: { type: "jpeg", quality: 0.98 }, html2canvas: { scale: 1.5, useCORS: true }, jsPDF: { unit: "in", format: [width, height], orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"], before: [".book-chapter"] } }).from($("#formattedPreview")).save(); showToast("PDF download started."); return; } catch (error) { showToast("The direct PDF helper could not finish. Opening the print view instead."); }
+  }
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) { showToast("Your browser blocked the print window. Allow popups, then try again."); return; }
+  printWindow.document.write(formatBookMarkup(true).replace("</head>", "<style>@media print{body{background:#fff}.format-book{max-width:none}}</style></head>")); printWindow.document.close(); printWindow.focus(); printWindow.print();
+}
+
+function bindFormatterActions() {
+  const formatTitle = $("#formatTitle");
+  const formatAuthor = $("#formatAuthor");
+  formatTitle.oninput = () => { formatter.title = formatTitle.value; updateFormatterPreview(); };
+  formatAuthor.oninput = () => { formatter.author = formatAuthor.value; updateFormatterPreview(); };
+  $$("#bookType,#trimSize,#formatFont,#chapterStyle,#includeFrontMatter,#includeToc,#includePageNumbers").forEach((field) => field.onchange = () => { const key = Object.entries(formatterFieldMap).find(([, id]) => id === field.id)?.[0] || field.id; formatter.settings[key] = field.type === "checkbox" ? field.checked : field.value; updateFormatterPreview(); });
+  $("#formatFileInput").onchange = async (event) => { const text = await readFileInto(event.target.files[0], $("#formatSourceStatus"), null, ""); if (text) { formatter.sourceText = text; if (!formatter.title.trim()) formatter.title = event.target.files[0].name.replace(/\.[^.]+$/, ""); persistFormatter(); renderFormatter(); showToast("Finished manuscript loaded. Choose your format, then preview it."); } };
+  $("#formatDropZone").ondragover = (event) => { event.preventDefault(); $("#formatDropZone").classList.add("is-dragging"); };
+  $("#formatDropZone").ondragleave = () => $("#formatDropZone").classList.remove("is-dragging");
+  $("#formatDropZone").ondrop = async (event) => { event.preventDefault(); $("#formatDropZone").classList.remove("is-dragging"); const file = event.dataTransfer.files[0]; const text = await extractFileText(file).catch((error) => { showToast(error.message); return ""; }); if (text) { formatter.sourceText = text; if (!formatter.title.trim()) formatter.title = file.name.replace(/\.[^.]+$/, ""); persistFormatter(); renderFormatter(); showToast("Finished manuscript loaded."); } };
+  $("#formatDropZone").onclick = () => $("#formatFileInput").click();
+  $("#formatDropZone").onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); $("#formatFileInput").click(); } };
+  $("[data-format-paste]").onclick = async () => { try { const text = await navigator.clipboard.readText(); if (!text) { showToast("Your clipboard is empty."); return; } formatter.sourceText = text; persistFormatter(); renderFormatter(); showToast("Finished manuscript pasted. Choose your format, then preview it."); } catch (error) { showToast("Tap inside the book formatter after copying your text, or choose a file instead."); } };
+  $("[data-format-preview]").onclick = () => { if (!formatter.sourceText.trim()) { showToast("Load the finished manuscript before previewing it."); return; } persistFormatter(); renderFormattedPreview(); $("#formattedPreview").scrollIntoView({ behavior: "smooth", block: "start" }); };
+  $("[data-download-epub]").onclick = exportEpub;
+  $("[data-download-doc]").onclick = exportDoc;
+  $("[data-download-pdf]").onclick = exportPdf;
+  $("[data-download-html]").onclick = exportHtml;
+  $("[data-download-format-backup]").onclick = () => { downloadFile(`${slug(formatTitleForExport())}-format-backup.json`, JSON.stringify(formatter, null, 2), "application/json"); showToast("Format backup download started."); };
+}
+
+function renderInitialView() {
+  const directFormatterRoute = window.location.pathname.replace(/\/$/, "").endsWith("/formatter");
+  const view = directFormatterRoute || window.location.hash.toLowerCase().startsWith("#formatter") ? "formatter" : "beta";
+  switchView(view);
 }
 
 bindGlobalActions();
 renderApp();
+renderFormatter();
+renderInitialView();
+window.addEventListener("hashchange", () => switchView(window.location.hash.toLowerCase().startsWith("#formatter") ? "formatter" : "beta"));

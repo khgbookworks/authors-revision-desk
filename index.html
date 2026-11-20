@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1f4338" />
-    <meta name="description" content="A private, practical workspace for beta reading feedback and manuscript revision." />
+    <meta name="description" content="A private workspace for human reader feedback, author led revision, and professional book formatting." />
     <title>Author's Revision Desk</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,14 +14,15 @@
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
-      <a class="brand" href="#top" aria-label="Author's Revision Desk home">
+      <a class="brand" href="#top" aria-label="Author's Revision Desk home" data-view-switch="beta">
         <span class="brand-mark" aria-hidden="true">R</span>
         <span><strong>Author's Revision Desk</strong><small>Private manuscript workspace</small></span>
       </a>
-      <nav class="top-nav" aria-label="Primary navigation">
-        <a href="#workspace">Workspace</a>
-        <a href="#how-it-works">How it works</a>
-        <a href="#privacy">Privacy</a>
+      <nav class="top-nav" aria-label="Primary navigation" id="top-nav">
+        <a href="#workspace" data-view-link="beta">Beta reading</a>
+        <a href="#formatter" data-view-link="formatter">Book formatter</a>
+        <a href="#how-it-works" data-view-link="beta">How it works</a>
+        <a href="#privacy" data-view-link="beta">Privacy</a>
       </nav>
       <button class="mobile-menu" type="button" aria-label="Open navigation" aria-controls="top-nav" aria-expanded="false" data-mobile-menu><span></span><span></span></button>
     </header>
@@ -29,35 +30,39 @@
     <main id="main-content">
       <section class="welcome section-shell" id="top">
         <div class="welcome-copy">
-          <p class="eyebrow">For authors, beta readers, and thoughtful revision</p>
-          <h1>Turn honest feedback into a <em>stronger manuscript.</em></h1>
-          <p class="welcome-lede">Bring your manuscript and your feedback into one calm workspace. Read chapter by chapter, revise with intention, and download each result separately when you are ready.</p>
-          <div class="welcome-points"><span><b>01</b> Import or paste</span><span><b>02</b> Review by chapter</span><span><b>03</b> Revise and export</span></div>
+          <p class="eyebrow">For authors, beta readers, and finished books</p>
+          <h1>Keep the voice. <em>Strengthen the work.</em></h1>
+          <p class="welcome-lede">Use a reader's response as a suggestion, not a verdict. Then format the finished manuscript professionally without changing a word.</p>
+          <div class="welcome-points"><span><b>01</b> Read as a reader</span><span><b>02</b> Decide as the author</span><span><b>03</b> Format when ready</span></div>
+          <div class="mode-switch" role="tablist" aria-label="Choose a workspace">
+            <button class="mode-switch-button is-active" type="button" role="tab" aria-selected="true" data-view-switch="beta">Beta reading <small>suggestions only</small></button>
+            <button class="mode-switch-button" type="button" role="tab" aria-selected="false" data-view-switch="formatter">Book formatter <small>finished manuscript</small></button>
+          </div>
         </div>
-        <div class="privacy-card"><span class="card-kicker"><i></i> Your work stays with you</span><h2>No account. No upload. No public manuscript.</h2><p>This version keeps manuscript text, feedback, and revisions in your browser's local storage. Use the project backup whenever you want a portable copy.</p><span class="card-note">Best for private drafts and feedback from trusted readers</span></div>
+        <div class="privacy-card"><span class="card-kicker"><i></i> Your words stay yours</span><h2>A reader's response, not a rewrite.</h2><p>Feedback is kept separate from the manuscript. The beta reading workspace does not apply suggestions, change your voice, or silently improve a sentence.</p><span class="card-note">Format the finished book only when you are ready</span></div>
       </section>
 
-      <section class="workspace section-shell" id="workspace">
+      <section class="workspace section-shell app-view" id="workspace" data-view="beta">
         <div class="workspace-topline">
-          <div><p class="eyebrow">Your manuscript desk</p><h2 id="workspaceHeading">Start a new review</h2></div>
-          <div class="workspace-actions"><button class="button button-quiet" type="button" data-new-project>New project</button><label class="button button-primary file-button" for="fileInput">Choose a manuscript file<input id="fileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,.docx,.pdf,text/plain,text/markdown,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label></div>
+          <div><p class="eyebrow">Beta reading workspace</p><h2 id="workspaceHeading">Start a new beta read</h2></div>
+          <div class="workspace-actions"><span class="mode-note">Suggestions only</span><button class="button button-quiet" type="button" data-new-project>New project</button><label class="button button-primary file-button" for="fileInput">Choose a manuscript file<input id="fileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,.docx,.pdf,text/plain,text/markdown,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label></div>
         </div>
 
         <div class="onboarding" id="onboarding">
           <div class="onboarding-main">
             <span class="step-number">01</span>
-            <h3>Bring in your manuscript</h3>
-            <p>Paste a full manuscript or one chapter below. The desk will recognize common headings such as Chapter One, Chapter 1, Prologue, and Part I.</p>
+            <h3>Bring in the manuscript you want read</h3>
+            <p>Paste a full manuscript or one chapter below. The desk recognizes common headings such as Chapter One, Chapter 1, Prologue, and Part I.</p>
             <label class="field-label" for="projectTitle">Project title</label>
             <input class="text-input" id="projectTitle" type="text" placeholder="For example, The Night Garden" autocomplete="off" />
             <label class="field-label" for="manuscriptInput">Manuscript or chapter text</label>
             <div class="paste-tools"><button class="button button-quiet" type="button" data-paste-clipboard>Paste from clipboard</button><span>Or tap inside the box and paste normally.</span></div>
-            <textarea class="manuscript-input" id="manuscriptInput" placeholder="Paste your manuscript here...\n\nTip: use headings such as CHAPTER ONE or Chapter 1 to create separate chapter tabs."></textarea>
+            <textarea class="manuscript-input" id="manuscriptInput" placeholder="Paste the book or chapter here...\n\nTip: use headings such as CHAPTER ONE or Chapter 1 to create separate chapter tabs."></textarea>
             <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-controls="fileInput">Drop a TXT, Markdown, HTML, DOCX, or PDF file here, or choose one above.</div>
-            <button class="button button-primary large-button" type="button" data-create-project>Create my workspace <span aria-hidden="true">↗</span></button>
-            <p class="micro-note">Accepted files: TXT, Markdown, HTML, DOCX, and PDF. Files are read in your browser and are not uploaded to a manuscript server.</p>
+            <button class="button button-primary large-button" type="button" data-create-project>Open beta reading desk <span aria-hidden="true">↗</span></button>
+            <p class="micro-note">The reader response will remain separate from the manuscript. Accepted files are read in your browser and are not uploaded to a manuscript server.</p>
           </div>
-          <aside class="onboarding-side"><span class="step-number">02</span><h3>Or bring feedback first</h3><p>Already have notes from a beta reader? Create a project with any short piece of manuscript, then paste the feedback into the chapter review fields.</p><div class="sample-note"><strong>Professional lenses</strong><span>First impression</span><span>Emotional impact</span><span>Character development</span><span>Plot and pacing</span><span>Clarity and reader experience</span></div></aside>
+          <aside class="onboarding-side"><span class="step-number">02</span><h3>Bring feedback you already have</h3><p>Already have notes from a human beta reader or an AI reader? Add them to the chapter fields, then decide what is useful. The app keeps them as suggestions.</p><div class="sample-note"><strong>Reader perspective lenses</strong><span>What stayed with me</span><span>Where I felt close or distant</span><span>What I expected next</span><span>Where the pace changed</span><span>What I would suggest trying</span></div></aside>
         </div>
 
         <div class="desk" id="desk" hidden>
@@ -68,37 +73,51 @@
           </aside>
 
           <section class="chapter-editor" aria-labelledby="chapterHeading">
-            <div class="editor-head"><div><p class="eyebrow">Current chapter</p><h3 id="chapterHeading">Chapter One</h3><span class="chapter-meta" id="chapterMeta">0 words</span></div><div class="editor-head-actions"><button class="button button-quiet" type="button" data-start-revision>Start revision from draft</button><button class="icon-button" type="button" data-delete-chapter aria-label="Delete current chapter">×</button></div></div>
-            <div class="editor-tabs" role="tablist" aria-label="Chapter writing views"><button class="editor-tab is-active" type="button" role="tab" aria-selected="true" data-editor-tab="draft">Original draft</button><button class="editor-tab" type="button" role="tab" aria-selected="false" data-editor-tab="improved">Improved version</button></div>
-            <div class="writing-panel is-active" data-writing-panel="draft"><textarea id="draftText" class="writing-area" aria-label="Original chapter draft"></textarea><div class="writing-footer"><span>Original text is kept as a reference.</span><span id="draftWords">0 words</span></div></div>
-            <div class="writing-panel" data-writing-panel="improved" hidden><textarea id="improvedText" class="writing-area" aria-label="Improved chapter version" placeholder="Start your improved version here, or use the button above to copy the original draft."></textarea><div class="writing-footer"><span>Write freely. Your improved text is saved as you type.</span><span id="improvedWords">0 words</span></div></div>
+            <div class="editor-head"><div><p class="eyebrow">Current chapter</p><h3 id="chapterHeading">Chapter One</h3><span class="chapter-meta" id="chapterMeta">0 words</span></div><div class="editor-head-actions"><button class="button button-quiet" type="button" data-start-revision>Open author copy</button><button class="icon-button" type="button" data-delete-chapter aria-label="Delete current chapter">×</button></div></div>
+            <div class="editor-tabs" role="tablist" aria-label="Chapter writing views"><button class="editor-tab is-active" type="button" role="tab" aria-selected="true" data-editor-tab="draft">Original draft</button><button class="editor-tab" type="button" role="tab" aria-selected="false" data-editor-tab="improved">Author's optional copy</button></div>
+            <div class="writing-panel is-active" data-writing-panel="draft"><textarea id="draftText" class="writing-area" aria-label="Original chapter draft"></textarea><div class="writing-footer"><span>Kept exactly as the source reference.</span><span id="draftWords">0 words</span></div></div>
+            <div class="writing-panel" data-writing-panel="improved" hidden><textarea id="improvedText" class="writing-area" aria-label="Author's optional working copy" placeholder="This is your space to make changes yourself. Beta reading notes never change this copy automatically."></textarea><div class="writing-footer"><span>Author controlled. Your voice stays in your hands.</span><span id="improvedWords">0 words</span></div></div>
           </section>
 
           <aside class="feedback-panel" aria-labelledby="feedbackHeading">
-            <div class="feedback-head"><div><p class="eyebrow">Beta reader report</p><h3 id="feedbackHeading">Feedback and revision brief</h3></div><span class="saved-state" id="savedState">Saved locally</span></div>
-            <p class="feedback-intro">Write what you genuinely noticed in your own words. The desk never invents reader reactions or turns them into canned feedback.</p>
+            <div class="feedback-head"><div><p class="eyebrow">Reader perspective</p><h3 id="feedbackHeading">Suggestions, not edits</h3></div><span class="saved-state" id="savedState">Saved locally</span></div>
+            <p class="feedback-intro">Write what a real reader might say after sitting with the chapter. Specific and imperfect is better than polished and empty. Nothing in this panel rewrites the book.</p>
+            <div class="suggestion-note"><strong>Beta reading boundary</strong><span>This is not an editing pass. Use the notes to decide what you want to explore.</span></div>
             <div class="feedback-fields" id="feedbackFields"></div>
-            <label class="field-label" for="generalFeedback">General feedback or reader letter</label><textarea class="feedback-area" id="generalFeedback" placeholder="Write in your own voice. What stayed with you after reading this chapter?"></textarea>
+            <label class="field-label" for="generalFeedback">General reader letter</label><textarea class="feedback-area" id="generalFeedback" placeholder="Write in your own voice. What stayed with you after reading this chapter?"></textarea>
             <label class="field-label" for="customFeedbackFocus">What would you like feedback on?</label><textarea class="feedback-area" id="customFeedbackFocus" placeholder="Add your own focus, such as the ending, romance arc, world building, sensitivity, market fit, or anything else."></textarea>
             <label class="field-label" for="authorDecision">Author's decision after the review</label><textarea class="feedback-area" id="authorDecision" placeholder="After reading the feedback, what do you want to keep, question, change, or revisit?"></textarea>
-            <div class="editing-plan"><div class="editing-plan-head"><div><span class="field-label">Editing and improvement focus</span><p class="editing-note">Choose as many as you need. You can add another pass whenever your manuscript changes.</p></div><button class="button button-quiet" type="button" data-add-editing-pass>Add another pass</button></div><div class="editing-options" id="editingOptions"></div><div class="editing-passes" id="editingPasses"></div></div>
-            <div class="brief-card"><div class="brief-card-head"><span>Revision brief</span><button class="quiet-button" type="button" data-copy-brief>Copy brief</button></div><p id="revisionBrief">Add feedback above to create a focused revision brief.</p></div>
-            <div class="feedback-actions"><button class="button button-primary" type="button" data-download-feedback>Download feedback</button><button class="button button-quiet" type="button" data-download-project>Backup project</button></div>
+            <div class="editing-plan"><div class="editing-plan-head"><div><span class="field-label">Possible next steps</span><p class="editing-note">These are suggestions for your own editing later. The desk will not apply them.</p></div><button class="button button-quiet" type="button" data-add-editing-pass>Add another suggestion</button></div><div class="editing-options" id="editingOptions"></div><div class="editing-passes" id="editingPasses"></div></div>
+            <div class="brief-card"><div class="brief-card-head"><span>Reader suggestion brief</span><button class="quiet-button" type="button" data-copy-brief>Copy brief</button></div><p id="revisionBrief">Add your own reader response above to create a clear suggestion brief.</p></div>
+            <div class="feedback-actions"><button class="button button-primary" type="button" data-download-feedback>Download reader feedback</button><button class="button button-quiet" type="button" data-download-project>Backup project</button></div>
           </aside>
         </div>
       </section>
 
-      <section class="how-it-works section-shell" id="how-it-works">
-        <div class="section-intro"><p class="eyebrow">A simple professional process</p><h2>Read deeply. Revise deliberately.</h2><p>Good feedback is not a verdict. It is material you can examine, question, and use. This desk keeps the reader's response beside the words it is responding to.</p></div>
-        <div class="process-grid"><article><span>01</span><h3>Capture the manuscript</h3><p>Import a text file or paste your chapters. The desk keeps an original draft and a separate improved version.</p></article><article><span>02</span><h3>Organize the response</h3><p>Record feedback under consistent lenses so patterns become visible across chapters.</p></article><article><span>03</span><h3>Make the changes</h3><p>Use the revision brief as a guide, then edit the improved version in your own voice.</p></article><article><span>04</span><h3>Take your work with you</h3><p>Download feedback and revised manuscript files separately, either as a whole book or by chapter.</p></article></div>
+      <section class="formatter section-shell app-view" id="formatter" data-view="formatter" hidden>
+        <div class="formatter-intro"><p class="eyebrow">Finished book formatter</p><h2>Format the finished book without changing a word.</h2><p>Use this page after beta reading and editing are complete. The formatter changes presentation only. It does not paraphrase, correct, shorten, or rewrite your manuscript.</p><div class="formatter-integrity"><span>Source wording preserved</span><span>Local browser processing</span><span>Preview before export</span></div></div>
+        <div class="formatter-stage">
+          <aside class="formatter-controls" aria-label="Book formatting choices">
+            <div class="formatter-card"><p class="step-number">01</p><h3>Bring in the finished book</h3><label class="field-label" for="formatTitle">Book title</label><input class="text-input" id="formatTitle" placeholder="For example, The Night Garden" autocomplete="off" /><label class="field-label" for="formatAuthor">Author name</label><input class="text-input" id="formatAuthor" placeholder="Your name" autocomplete="name" /><div class="paste-tools"><button class="button button-quiet" type="button" data-format-paste>Paste finished manuscript</button><span>Or choose a file.</span></div><label class="button button-primary file-button format-file-button" for="formatFileInput">Choose finished manuscript<input id="formatFileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,.docx,.pdf,text/plain,text/markdown,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label><div class="drop-zone" id="formatDropZone" tabindex="0" role="button" aria-controls="formatFileInput">Drop the finished TXT, Markdown, HTML, DOCX, or PDF here.</div><p class="micro-note" id="formatSourceStatus">No finished manuscript loaded yet.</p></div>
+            <div class="formatter-card"><p class="step-number">02</p><h3>How do you want it to look?</h3><label class="field-label" for="bookType">Book type</label><select class="text-input format-select" id="bookType"><option value="auto">Help me choose</option><option value="novel">Fiction or novel</option><option value="memoir">Memoir or personal narrative</option><option value="nonfiction">General nonfiction</option><option value="poetry">Poetry or prose poetry</option><option value="workbook">Workbook or guided journal</option></select><p class="format-recommendation" id="formatRecommendation">The formatter will suggest a professional default after the book is loaded.</p><label class="field-label" for="trimSize">Page or trim size</label><select class="text-input format-select" id="trimSize"><option value="6x9">6 × 9 in · trade paperback</option><option value="5.5x8.5">5.5 × 8.5 in · compact trade</option><option value="a5">A5 · international paperback</option><option value="8.5x11">8.5 × 11 in · workbook</option></select><label class="field-label" for="formatFont">Book font</label><select class="text-input format-select" id="formatFont"><option value="newsreader">Newsreader · literary serif</option><option value="georgia">Georgia · familiar serif</option><option value="palatino">Palatino · open serif</option><option value="sans">DM Sans · clean sans serif</option></select><label class="field-label" for="chapterStyle">Chapter treatment</label><select class="text-input format-select" id="chapterStyle"><option value="classic">Classic chapter opening</option><option value="minimal">Minimal chapter heading</option><option value="numbered">Numbered chapter heading</option><option value="poetry">Poetry section opening</option></select><label class="check-row"><input type="checkbox" id="includeFrontMatter" checked><span>Include a title page</span></label><label class="check-row"><input type="checkbox" id="includeToc" checked><span>Include a contents page when chapters are found</span></label><label class="check-row"><input type="checkbox" id="includePageNumbers" checked><span>Include page number styling for print</span></label><button class="button button-primary large-button" type="button" data-format-preview>Preview this format <span aria-hidden="true">↗</span></button></div>
+          </aside>
+          <section class="formatter-preview-panel" aria-labelledby="formatterPreviewHeading"><div class="formatter-preview-head"><div><p class="eyebrow">03 · Preview</p><h3 id="formatterPreviewHeading">Your formatted book</h3></div><span class="saved-state" id="formatSavedState">Nothing exported</span></div><div class="formatter-placeholder" id="formatPlaceholder"><span class="book-placeholder-mark" aria-hidden="true">R</span><h4>Load a finished manuscript to see the book take shape.</h4><p>The preview is presentation only. Your source wording stays unchanged.</p></div><article class="formatted-preview" id="formattedPreview" hidden></article><div class="formatter-actions" id="formatterActions" hidden><button class="button button-primary" type="button" data-download-epub>Download EPUB</button><button class="button button-quiet" type="button" data-download-doc>Download DOC</button><button class="button button-quiet" type="button" data-download-pdf>Download PDF</button><button class="button button-quiet" type="button" data-download-html>Download HTML</button><button class="button button-quiet" type="button" data-download-format-backup>Backup format settings</button></div><p class="formatter-footnote">PDF export uses the browser's book preview and save flow when the direct PDF helper is unavailable. For the cleanest result, choose “Save as PDF” in the print dialog.</p></section>
+        </div>
       </section>
 
-      <section class="privacy-section section-shell" id="privacy"><div class="privacy-symbol" aria-hidden="true">R</div><div><p class="eyebrow">A note on privacy</p><h2>Your draft is not a product.</h2><p>This app is designed to work without an account or a manuscript server. Your project lives in this browser until you export it. Clear your browser data and the local project may be lost, so use Backup project regularly.</p></div><button class="button button-secondary" type="button" data-scroll-workspace>Open workspace <span aria-hidden="true">↑</span></button></section>
+      <section class="how-it-works section-shell app-view" id="how-it-works" data-view="beta">
+        <div class="section-intro"><p class="eyebrow">A simple professional process</p><h2>Read deeply. Decide deliberately.</h2><p>Good feedback is not a verdict. It is material you can examine, question, and use. Formatting comes later, when the words and voice are settled.</p></div>
+        <div class="process-grid"><article><span>01</span><h3>Capture the manuscript</h3><p>Import a text file or paste your chapters. The original draft stays untouched.</p></article><article><span>02</span><h3>Listen as a reader</h3><p>Record what you felt, expected, questioned, and would suggest trying next.</p></article><article><span>03</span><h3>Choose as the author</h3><p>Decide what belongs in the work. The app does not make that decision for you.</p></article><article><span>04</span><h3>Format when ready</h3><p>Move the finished manuscript to the formatter and export a reading file without rewriting it.</p></article></div>
+      </section>
+
+      <section class="privacy-section section-shell app-view" id="privacy" data-view="beta"><div class="privacy-symbol" aria-hidden="true">R</div><div><p class="eyebrow">A note on privacy</p><h2>Your draft is not a product.</h2><p>This app is designed to work without an account or a manuscript server. Your project lives in this browser until you export it. Clear your browser data and the local project may be lost, so use Backup project regularly.</p></div><button class="button button-secondary" type="button" data-view-switch="beta">Open beta workspace <span aria-hidden="true">↑</span></button></section>
     </main>
-    <footer class="site-footer section-shell"><span>Author's Revision Desk</span><span>Private, local, author controlled</span><span>Feedback and manuscript exports are separate</span></footer>
+    <footer class="site-footer section-shell"><span>Author's Revision Desk</span><span>Reader suggestions, author decisions, finished book exports</span><span>Private, local, author controlled</span></footer>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
