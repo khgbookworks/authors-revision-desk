@@ -24,6 +24,7 @@ const suggestionTypes = [
 
 const storageKey = "authors-revision-desk-project";
 const formatterStorageKey = "authors-revision-desk-formatter";
+const editorStorageKey = "authors-revision-desk-editor";
 const makeId = () => `chapter-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -37,6 +38,7 @@ const defaultFormatter = () => ({ title: "", author: "", sourceText: "", setting
 
 let state = loadState() || { title: "", chapters: [], selectedId: null, updatedAt: null };
 let formatter = loadFormatterState();
+let editor = loadEditorState();
 let saveTimer;
 
 function loadState() {
@@ -70,6 +72,17 @@ function loadFormatterState() {
   }
 }
 
+function defaultEditor() { return { title: "", sourceText: "", editType: "auto", brief: "", segments: [], suggestions: [], generated: false, updatedAt: null }; }
+function loadEditorState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(editorStorageKey));
+    const base = defaultEditor();
+    return saved ? { ...base, ...saved, segments: Array.isArray(saved.segments) ? saved.segments : [], suggestions: Array.isArray(saved.suggestions) ? saved.suggestions : [] } : base;
+  } catch (error) {
+    return defaultEditor();
+  }
+}
+
 function persist(message = "Saved locally") {
   state.updatedAt = new Date().toISOString();
   try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (error) { message = "Saved for this session"; }
@@ -85,11 +98,66 @@ function persistFormatter(message = "Saved locally") {
   if (savedState && !formatter.sourceText) savedState.textContent = message;
 }
 
+function persistEditor(message = "Saved locally") {
+  editor.updatedAt = new Date().toISOString();
+  try { localStorage.setItem(editorStorageKey, JSON.stringify(editor)); } catch (error) { message = "Saved for this session"; }
+  const savedState = $("#editSavedState");
+  if (savedState) savedState.textContent = message;
+}
+
 function wordCount(text = "") { return text.trim() ? text.trim().split(/\s+/).length : 0; }
 function escapeHtml(value = "") { return String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char])); }
 function showToast(message) { toast.textContent = message; toast.classList.add("is-visible"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove("is-visible"), 3000); }
 function slug(value) { return (value || "manuscript").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "manuscript"; }
 function downloadFile(filename, content, type = "text/plain") { const blob = content instanceof Blob ? content : new Blob([content], { type }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 700); }
+
+function editTypeLabel(type) { return ({ developmental: "developmental review", structural: "structure and pacing", copyedit: "copyediting", line: "line editing", proofreading: "proofreading", continuity: "continuity check", sensitivity: "sensitivity review" }[type] || type); }
+function recommendEditType(text) {
+  const lower = text.toLowerCase();
+  if (/\b(teh|recieve|alot|could of|should of|would of)\b| {2,}|\s+[,.!?;:]/i.test(text)) return "proofreading";
+  if (/chapter|part|scene|act|argument|thesis/i.test(lower) && text.length > 12000) return "structural";
+  return "copyedit";
+}
+function effectiveEditType() { return editor.editType === "auto" ? recommendEditType(editor.sourceText) : editor.editType; }
+function editTypeReason(type) { return ({ developmental: "Review the larger promise, character or argument here before changing sentences.", structural: "Check whether this section arrives in the strongest order and carries the reader forward.", continuity: "Check names, dates, details, timeline, and promises against the rest of the manuscript.", sensitivity: "Read this passage with the intended audience and lived experience in mind before deciding what to revise." }[type] || "The desk found a conservative wording or mechanics change to consider. Check that it fits your voice before approving it."); }
+function proposeMechanicalEdit(text, type) {
+  let proposed = text;
+  const reasons = [];
+  const change = (pattern, replacement, reason) => {
+    const matches = proposed.match(pattern);
+    const count = matches ? matches.length : 0;
+    proposed = typeof replacement === "function" ? proposed.replace(pattern, (...args) => replacement(...args)) : proposed.replace(pattern, replacement);
+    if (count) reasons.push(`${reason} (${count} ${count === 1 ? "place" : "places"})`);
+  };
+  change(/[ \t]{2,}/g, " ", "Repeated spaces were reduced");
+  change(/[ \t]+([,.;:!?])/g, "$1", "Spaces before punctuation were removed");
+  change(/([,.;:!?])([A-Za-z])/g, "$1 $2", "Missing spaces after punctuation were restored");
+  change(/\b([A-Za-z][A-Za-z’'-]*)[ \t]+\1\b/gi, "$1", "A repeated word was reduced");
+  change(/\bteh\b/gi, "the", "A common spelling error was corrected");
+  change(/\brecieve\b/gi, "receive", "A common spelling error was corrected");
+  change(/\balot\b/gi, "a lot", "A common spelling error was corrected");
+  if (type === "copyedit") {
+    change(/\bin order to\b/gi, "to", "A wordy phrase was shortened without changing the meaning");
+    change(/\bdue to the fact that\b/gi, "because", "A wordy phrase was made more direct");
+  }
+  if (type === "line") {
+    change(/\bat this point in time\b/gi, "now", "A familiar phrase was made more direct");
+    change(/\bin the event that\b/gi, "if", "A wordy phrase was made more direct");
+  }
+  return { proposed, reasons };
+}
+function splitEditSegments(text) { return text.split(/\n\s*\n/).map((segment) => segment.trim()).filter(Boolean); }
+function tokenise(text) { return text.match(/\s+|[A-Za-z0-9’'-]+|[^A-Za-z0-9\s]/g) || []; }
+function renderInlineDiff(original, proposed) {
+  if (original === proposed) return `<span class="diff-note">No wording has been proposed yet. Edit the suggestion box below if you want to add one manually.</span>`;
+  const before = tokenise(original); const after = tokenise(proposed); let start = 0;
+  while (start < before.length && start < after.length && before[start] === after[start]) start += 1;
+  let endBefore = before.length - 1; let endAfter = after.length - 1;
+  while (endBefore >= start && endAfter >= start && before[endBefore] === after[endAfter]) { endBefore -= 1; endAfter -= 1; }
+  return `${escapeHtml(before.slice(0, start).join(""))}<del>${escapeHtml(before.slice(start, endBefore + 1).join(""))}</del><ins>${escapeHtml(after.slice(start, endAfter + 1).join(""))}</ins>${escapeHtml(before.slice(endBefore + 1).join(""))}`;
+}
+function composeEditedText() { return editor.segments.map((segment, index) => { const suggestion = editor.suggestions.find((item) => item.index === index); return suggestion?.status === "approved" ? suggestion.proposed : segment; }).join("\n\n"); }
+function suggestionStatusLabel(status) { return status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Pending decision"; }
 
 function splitManuscript(text) {
   const normalized = text.replace(/\r\n/g, "\n").trim();
@@ -202,6 +270,7 @@ function switchView(view) {
   $$(".app-view").forEach((section) => { section.hidden = section.dataset.view !== view; });
   $$('[data-view-switch]').forEach((button) => { if (button.matches("button")) { const active = button.dataset.viewSwitch === view; button.classList.toggle("is-active", active); button.setAttribute("aria-selected", String(active)); } });
   if (view === "formatter") renderFormatter();
+  if (view === "editing") renderEditingWorkspace();
 }
 
 function feedbackMarkdown(chapter) {
@@ -259,6 +328,83 @@ async function readFileInto(file, target, titleTarget, statusMessage = "File loa
   }
 }
 
+function updateEditingRecommendation() {
+  const recommendation = $("#editRecommendation");
+  if (!editor.sourceText) { recommendation.textContent = "Load a manuscript and the desk will suggest a sensible starting pass."; return; }
+  const type = recommendEditType(editor.sourceText);
+  recommendation.textContent = editor.editType === "auto" ? `A sensible starting point is ${editTypeLabel(type)}. You can choose another pass.` : `You chose ${editTypeLabel(editor.editType)}. The original will remain untouched until you approve a change.`;
+}
+
+function renderEditingWorkspace() {
+  $("#editTitle").value = editor.title || "";
+  $("#editInput").value = editor.sourceText || "";
+  $("#editType").value = editor.editType || "auto";
+  $("#editBrief").value = editor.brief || "";
+  updateEditingRecommendation();
+  const suggestions = $("#editSuggestions");
+  const toolbar = $("#editToolbar");
+  const exportBox = $("#editingExport");
+  if (!editor.generated) {
+    $("#editingSummary").innerHTML = `<strong>Your original stays untouched.</strong><span>Load a manuscript, choose a pass, and start when you are ready. Every suggestion will show the reason for the change.</span>`;
+    suggestions.innerHTML = "";
+    toolbar.hidden = true;
+    exportBox.hidden = true;
+    return;
+  }
+  const approved = editor.suggestions.filter((item) => item.status === "approved").length;
+  const rejected = editor.suggestions.filter((item) => item.status === "rejected").length;
+  const pending = editor.suggestions.length - approved - rejected;
+  $("#editingSummary").innerHTML = `<strong>${editor.suggestions.length} ${editor.suggestions.length === 1 ? "suggestion" : "suggestions"} from a ${escapeHtml(editTypeLabel(effectiveEditType()))} pass.</strong><span>${approved} approved · ${rejected} rejected · ${pending} pending. Only approved changes appear in the edited manuscript download.</span>`;
+  toolbar.hidden = false;
+  exportBox.hidden = false;
+  suggestions.innerHTML = editor.suggestions.map((item, index) => `<article class="edit-suggestion ${item.status}" data-edit-index="${index}"><div class="edit-suggestion-head"><div><span class="suggestion-number">${String(index + 1).padStart(2, "0")}</span><strong>${suggestionStatusLabel(item.status)}</strong></div><span class="edit-location">Section ${item.index + 1}</span></div><div class="edit-diff" aria-label="Suggested change">${renderInlineDiff(item.original, item.proposed)}</div><label class="field-label" for="edit-proposed-${index}">Proposed wording</label><textarea class="feedback-area edit-proposed" id="edit-proposed-${index}" data-edit-proposed="${index}">${escapeHtml(item.proposed)}</textarea><div class="edit-reason"><strong>Why this is suggested</strong><span>${escapeHtml(item.reason)}</span></div><div class="edit-suggestion-actions"><button class="button button-primary" type="button" data-approve-edit="${index}">Approve</button><button class="button button-quiet" type="button" data-reject-edit="${index}">Reject</button></div></article>`).join("");
+  $$('[data-edit-proposed]').forEach((field) => field.oninput = (event) => { const item = editor.suggestions[Number(event.target.dataset.editProposed)]; item.proposed = event.target.value; item.status = "pending"; persistEditor(); renderEditingWorkspace(); });
+  $$('[data-approve-edit]').forEach((button) => button.onclick = () => { editor.suggestions[Number(button.dataset.approveEdit)].status = "approved"; persistEditor(); renderEditingWorkspace(); });
+  $$('[data-reject-edit]').forEach((button) => button.onclick = () => { editor.suggestions[Number(button.dataset.rejectEdit)].status = "rejected"; persistEditor(); renderEditingWorkspace(); });
+}
+
+function startSuggestedEdit() {
+  const source = $("#editInput").value.trim();
+  if (!source) { showToast("Load or paste a manuscript before starting an edit."); $("#editInput").focus(); return; }
+  editor.title = $("#editTitle").value.trim() || "Untitled editing project";
+  editor.sourceText = source;
+  editor.editType = $("#editType").value;
+  editor.brief = $("#editBrief").value.trim();
+  const type = effectiveEditType();
+  editor.segments = splitEditSegments(source);
+  editor.suggestions = [];
+  editor.segments.forEach((segment, index) => {
+    const mechanical = ["copyedit", "line", "proofreading"].includes(type) ? proposeMechanicalEdit(segment, type) : { proposed: segment, reasons: [] };
+    const changed = mechanical.proposed !== segment;
+    if (changed || !["copyedit", "line", "proofreading"].includes(type)) {
+      const reason = mechanical.reasons.join(". ") || editTypeReason(type);
+      editor.suggestions.push({ id: makeId(), index, original: segment, proposed: mechanical.proposed, reason: editor.brief ? `${reason} Author's brief: ${editor.brief}` : reason, status: "pending" });
+    }
+  });
+  editor.generated = true;
+  persistEditor("Suggestions saved locally");
+  renderEditingWorkspace();
+  $("#editing").scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast(editor.suggestions.length ? `${editor.suggestions.length} suggested changes are ready for your decision.` : "No automatic changes were found. The manuscript remains untouched.");
+}
+
+function editingComparisonHtml() {
+  const title = escapeHtml(editor.title || "Editing comparison");
+  const rows = editor.suggestions.map((item, index) => `<article class="comparison-item"><h2>Suggestion ${index + 1} · Section ${item.index + 1} · ${escapeHtml(suggestionStatusLabel(item.status))}</h2><div class="comparison-diff">${renderInlineDiff(item.original, item.proposed)}</div><h3>Reason for suggesting this edit</h3><p>${escapeHtml(item.reason)}</p></article>`).join("");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${title}</title><style>body{font:15px/1.6 Arial,sans-serif;color:#20352e;max-width:800px;margin:40px auto;padding:0 24px}h1{font:400 34px Georgia,serif}h2{font-size:16px;border-top:1px solid #ccd5cc;padding-top:20px}.comparison-item{margin:28px 0}.comparison-diff{background:#f7f2e8;padding:18px;white-space:pre-wrap}del{background:#f4c5bd;color:#7c2418;text-decoration:line-through}ins{background:#cfe8d4;color:#145a31;text-decoration:none}h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em}p{color:#53665c}</style></head><body><h1>${title}</h1><p>This is a suggested-edit review. The original manuscript is preserved. Approve or reject each suggestion; only approved changes are included in the edited manuscript.</p>${rows}</body></html>`;
+}
+function editedManuscriptHtml() {
+  const title = escapeHtml(editor.title || "Edited manuscript");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font:16px/1.7 Georgia,serif;color:#20352e;max-width:760px;margin:40px auto;padding:0 24px}h1{font:400 34px Georgia,serif;margin-bottom:40px}.manuscript p{margin:0 0 1em;text-indent:1.5em}.manuscript p:first-child{text-indent:0}</style></head><body><h1>${title}</h1><div class="manuscript">${textBlocksHtml(composeEditedText(), "copyedit")}</div></body></html>`;
+}
+function editingReviewDoc() { return editingComparisonHtml().replace(/<title>.*?<\/title>/, `<title>${escapeHtml(editor.title || "Editing review")}</title>`); }
+function downloadEditedManuscript() { downloadFile(`${slug(editor.title)}-edited-manuscript.txt`, composeEditedText(), "text/plain"); showToast("Approved manuscript download started."); }
+function downloadEditedHtml() { downloadFile(`${slug(editor.title)}-edited-manuscript.html`, editedManuscriptHtml(), "text/html"); showToast("Edited HTML download started."); }
+function downloadEditedDoc() { downloadFile(`${slug(editor.title)}-edited-manuscript.doc`, editedManuscriptHtml(), "application/msword"); showToast("Edited DOC download started."); }
+function downloadEditingComparison() { downloadFile(`${slug(editor.title)}-suggested-edits.html`, editingComparisonHtml(), "text/html"); showToast("Comparison download started."); }
+function downloadEditingReviewDoc() { downloadFile(`${slug(editor.title)}-word-review.doc`, editingReviewDoc(), "application/msword"); showToast("Word review download started."); }
+function downloadEditingBackup() { downloadFile(`${slug(editor.title)}-editing-backup.json`, JSON.stringify({ ...editor, editedText: composeEditedText() }, null, 2), "application/json"); showToast("Editing backup download started."); }
+
 function bindGlobalActions() {
   $("[data-create-project]").onclick = () => createProject($("#projectTitle").value, $("#manuscriptInput").value);
   $("#fileInput").onchange = (event) => readFileInto(event.target.files[0], $("#manuscriptInput"), $("#projectTitle"), "File loaded. Read it over, then open the beta reading desk.");
@@ -280,7 +426,29 @@ function bindGlobalActions() {
   const exportButton = document.createElement("button"); exportButton.type = "button"; exportButton.className = "button button-quiet"; exportButton.textContent = "Download author copy"; exportButton.onclick = () => { const current = scopeChapter(); const content = current ? manuscriptText(current) : allManuscriptText(); downloadFile(`${slug(state.title)}-author-copy${current ? `-${slug(current.title)}` : ""}.txt`, content); showToast("Author copy download started."); };
   $(".feedback-actions").append(exportSelect, exportButton);
 
-  $$("[data-view-switch]").forEach((button) => button.addEventListener("click", () => { const view = button.dataset.viewSwitch; history.replaceState(null, "", view === "formatter" ? "#formatter" : "#workspace"); switchView(view); if (view === "beta") $("#workspace").scrollIntoView({ behavior: "smooth" }); else $("#formatter").scrollIntoView({ behavior: "smooth" }); }));
+  $("#editTitle").oninput = (event) => { editor.title = event.target.value; persistEditor(); };
+  $("#editInput").oninput = (event) => { editor.sourceText = event.target.value; editor.generated = false; updateEditingRecommendation(); persistEditor(); };
+  $("#editType").onchange = (event) => { editor.editType = event.target.value; updateEditingRecommendation(); persistEditor(); };
+  $("#editBrief").oninput = (event) => { editor.brief = event.target.value; persistEditor(); };
+  $("[data-start-editing]").onclick = startSuggestedEdit;
+  $("[data-edit-paste]").onclick = async () => { try { const text = await navigator.clipboard.readText(); $("#editInput").value = text; editor.sourceText = text; editor.generated = false; persistEditor(); updateEditingRecommendation(); showToast(text ? "Manuscript pasted into the editing workspace." : "Your clipboard is empty."); } catch (error) { showToast("Tap inside the editing text box and paste normally."); $("#editInput").focus(); } };
+  $("#editFileInput").onchange = async (event) => { const text = await readFileInto(event.target.files[0], $("#editInput"), $("#editTitle"), "Manuscript loaded. Choose an editing pass when you are ready."); if (text) { editor.sourceText = text; editor.generated = false; persistEditor(); updateEditingRecommendation(); } };
+  $("#editDropZone").ondragover = (event) => { event.preventDefault(); $("#editDropZone").classList.add("is-dragging"); };
+  $("#editDropZone").ondragleave = () => $("#editDropZone").classList.remove("is-dragging");
+  $("#editDropZone").ondrop = async (event) => { event.preventDefault(); $("#editDropZone").classList.remove("is-dragging"); const file = event.dataTransfer.files[0]; const text = await extractFileText(file).catch((error) => { showToast(error.message); return ""; }); if (text) { $("#editInput").value = text; $("#editTitle").value = editor.title || file.name.replace(/\.[^.]+$/, ""); editor.sourceText = text; editor.title = $("#editTitle").value; editor.generated = false; persistEditor(); updateEditingRecommendation(); showToast("Manuscript loaded into the editing workspace."); } };
+  $("#editDropZone").onclick = () => $("#editFileInput").click();
+  $("#editDropZone").onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); $("#editFileInput").click(); } };
+  $("[data-approve-all]").onclick = () => { editor.suggestions.forEach((item) => { item.status = "approved"; }); persistEditor(); renderEditingWorkspace(); showToast("All suggested changes marked approved."); };
+  $("[data-reject-all]").onclick = () => { editor.suggestions.forEach((item) => { item.status = "rejected"; }); persistEditor(); renderEditingWorkspace(); showToast("All suggested changes rejected. The original remains unchanged."); };
+  $("[data-reset-edits]").onclick = () => { editor.suggestions = []; editor.generated = false; persistEditor(); renderEditingWorkspace(); showToast("Suggestions cleared. Your original manuscript is still here."); };
+  $("[data-download-edited]").onclick = downloadEditedManuscript;
+  $("[data-download-edited-html]").onclick = downloadEditedHtml;
+  $("[data-download-edited-doc]").onclick = downloadEditedDoc;
+  $("[data-download-comparison]").onclick = downloadEditingComparison;
+  $("[data-download-edit-doc]").onclick = downloadEditingReviewDoc;
+  $("[data-download-edit-json]").onclick = downloadEditingBackup;
+
+  $$("[data-view-switch]").forEach((button) => button.addEventListener("click", () => { const view = button.dataset.viewSwitch; history.replaceState(null, "", view === "formatter" ? "#formatter" : view === "editing" ? "#editing" : "#workspace"); switchView(view); $(view === "formatter" ? "#formatter" : view === "editing" ? "#editing" : "#workspace").scrollIntoView({ behavior: "smooth" }); }));
   $$("[data-view-link]").forEach((link) => link.addEventListener("click", () => { const view = link.dataset.viewLink; setTimeout(() => switchView(view), 0); }));
   const menuButton = $("[data-mobile-menu]");
   menuButton.onclick = () => { const open = menuButton.getAttribute("aria-expanded") === "true"; menuButton.setAttribute("aria-expanded", String(!open)); $(".top-nav").classList.toggle("is-open", !open); menuButton.setAttribute("aria-label", open ? "Open navigation" : "Close navigation"); };
@@ -427,12 +595,14 @@ function bindFormatterActions() {
 
 function renderInitialView() {
   const directFormatterRoute = window.location.pathname.replace(/\/$/, "").endsWith("/formatter");
-  const view = directFormatterRoute || window.location.hash.toLowerCase().startsWith("#formatter") ? "formatter" : "beta";
+  const directEditingRoute = window.location.pathname.replace(/\/$/, "").endsWith("/editing");
+  const view = directFormatterRoute || window.location.hash.toLowerCase().startsWith("#formatter") ? "formatter" : directEditingRoute || window.location.hash.toLowerCase().startsWith("#editing") ? "editing" : "beta";
   switchView(view);
 }
 
 bindGlobalActions();
 renderApp();
 renderFormatter();
+renderEditingWorkspace();
 renderInitialView();
-window.addEventListener("hashchange", () => switchView(window.location.hash.toLowerCase().startsWith("#formatter") ? "formatter" : "beta"));
+window.addEventListener("hashchange", () => switchView(window.location.hash.toLowerCase().startsWith("#formatter") ? "formatter" : window.location.hash.toLowerCase().startsWith("#editing") ? "editing" : "beta"));

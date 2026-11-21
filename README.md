@@ -2,7 +2,7 @@
 
 A private, browser based manuscript workspace for authors, beta readers, and finished-book formatting.
 
-## Two separate modes
+## Three separate modes
 
 ### Beta Reading
 
@@ -11,6 +11,14 @@ The beta reading workspace is for reader perspective only. It helps a reader or 
 The app does not apply reader notes to the manuscript. It does not silently rewrite the author's voice. The original draft remains separate from the author's optional working copy, which the author edits manually if they choose.
 
 Feedback downloads are available as Markdown for the whole manuscript or the current chapter. They include reader observations, the requested feedback focus, the author's decision after review, and possible next steps without replacing the manuscript text.
+
+### Author-Controlled Editing
+
+The Editing Workspace is for authors who want to take a manuscript through a specific editing pass after beta reading. Choose developmental review, structure and pacing, copyediting, line editing, proofreading, continuity, or sensitivity review. Automatic browser-side suggestions are deliberately conservative for mechanical passes; broader passes create review notes rather than pretending to replace a specialist editor.
+
+The original manuscript is preserved. Each suggested change has a visible before-and-after comparison, an explanation of why it was suggested, an editable proposed wording field, and separate Approve and Reject controls. Only approved changes appear in the edited manuscript download. Pending and rejected suggestions leave the original wording in place.
+
+Editing exports include the approved manuscript as TXT, clean HTML, and Word-compatible DOC, plus a browser-readable HTML comparison, a Word-compatible review document with visible insertions and deletions, and a JSON backup containing the original, proposed wording, reasons, and approval status. The Word-compatible review is designed for opening in Word or importing into Google Docs; authors should still review and approve changes in their document editor because this static app does not connect to a live Google Docs or Word account.
 
 ### Book Formatter
 
@@ -60,8 +68,8 @@ GitHub Pages is configured to publish the `main` branch from the repository root
 
 https://khgbookworks.github.io/authors-revision-desk/
 
-The app uses relative asset paths so it works from the repository subpath. The formatter is available inside the app at `#formatter` and through the managed `/formatter` route.
+The app uses relative asset paths so it works from the repository subpath. The Editing Workspace is available at `#editing` and through the managed `/editing` route. The formatter is available inside the app at `#formatter` and through the managed `/formatter` route.
 
 ## Project structure
 
-`index.html` contains the beta reading and formatter views. `styles.css` contains the responsive editorial interface. `app.js` contains manuscript parsing, chapter navigation, suggestion capture, author-controlled copies, formatter preferences, preview generation, local persistence, and downloads. `manus-routes.json` declares the app routes. `build.js` creates the static `dist/` output.
+`index.html` contains the beta reading, author-controlled editing, and formatter views. `styles.css` contains the responsive editorial interface. `app.js` contains manuscript parsing, chapter navigation, suggestion capture, approval tracking, comparison generation, author-controlled copies, formatter preferences, preview generation, local persistence, and downloads. `manus-routes.json` declares the app routes. `build.js` creates the static `dist/` output.

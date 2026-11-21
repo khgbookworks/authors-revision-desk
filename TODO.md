@@ -48,3 +48,19 @@ Acceptance criteria:
 7. The project can be downloaded as a JSON backup.
 8. The interface is responsive, keyboard friendly, accessible, and usable without login or a backend.
 9. The project includes a self contained build output suitable for static hosting such as GitHub Pages.
+
+
+## Author-controlled editing workspace
+
+Acceptance criteria:
+
+1. The app exposes a clearly separate Editing Workspace between beta reading and finished-book formatting.
+2. Authors can paste or import TXT, Markdown, HTML, DOCX, and PDF manuscripts into the editing workspace on phones and computers.
+3. Authors can choose developmental, structural, copyediting, line editing, proofreading, continuity, or sensitivity goals, or receive a professional starting recommendation.
+4. The original manuscript is preserved separately and is never silently overwritten by a suggestion.
+5. Each generated suggestion shows the original wording, proposed wording, reason for the suggestion, location, and pending status.
+6. Authors can edit proposed wording and approve or reject each suggestion, or approve or reject all suggestions.
+7. Only approved suggestions appear in the edited manuscript export; rejected and pending suggestions leave the original wording in place.
+8. The app provides separate downloads for the approved manuscript as TXT, clean HTML, and Word-compatible DOC, plus an HTML comparison, a Word-compatible review document with visible insertions and deletions, and a JSON decision backup.
+9. Comparison exports retain the reason for each suggested edit and clearly state that the author must review the changes in Word or Google Docs.
+10. Editing state, approval status, and the original source persist locally in the browser and the layout remains usable on small screens with reduced-motion support.

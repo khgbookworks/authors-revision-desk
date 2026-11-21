@@ -84,3 +84,10 @@ The existing static project remains intentionally small:
 * `styles.css` owns the editorial visual system and responsive states for both modes.
 * `manus-routes.json` declares `/` and `/formatter` for managed preview.
 * `build.js` copies the static source into `dist/` for publication.
+
+
+## Author-controlled editing workspace
+
+The third mode, `/editing`, sits between beta reading and finished-book formatting. It accepts the same browser-side manuscript imports, stores a separate editing project in local storage, and keeps the source text immutable. Authors choose an editing goal or allow a conservative recommendation. Mechanical passes can propose limited wording changes; developmental, structural, continuity, and sensitivity passes produce review notes that authors can refine rather than claiming to replace a specialist editor.
+
+Each suggestion stores its source segment, proposed wording, reason, location, and status. The author can edit the proposed wording, approve or reject it individually, approve or reject all, and download only the approved result. HTML and Word-compatible review exports show deletions, insertions, reasons, and statuses so a client can review the paper trail in a document editor. JSON preserves the complete decision record. The visual system extends the editorial archive style with coral change marks, green approval states, responsive cards, small lift transitions, and reduced-motion support.

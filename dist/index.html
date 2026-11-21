@@ -20,7 +20,8 @@
       </a>
       <nav class="top-nav" aria-label="Primary navigation" id="top-nav">
         <a href="#workspace" data-view-link="beta">Beta reading</a>
-        <a href="#formatter" data-view-link="formatter">Book formatter</a>
+          <a href="#editing" data-view-link="editing">Editing workspace</a>
+          <a href="#formatter" data-view-link="formatter">Book formatter</a>
         <a href="#how-it-works" data-view-link="beta">How it works</a>
         <a href="#privacy" data-view-link="beta">Privacy</a>
       </nav>
@@ -32,10 +33,11 @@
         <div class="welcome-copy">
           <p class="eyebrow">For authors, beta readers, and finished books</p>
           <h1>Keep the voice. <em>Strengthen the work.</em></h1>
-          <p class="welcome-lede">Use a reader's response as a suggestion, not a verdict. Then format the finished manuscript professionally without changing a word.</p>
-          <div class="welcome-points"><span><b>01</b> Read as a reader</span><span><b>02</b> Decide as the author</span><span><b>03</b> Format when ready</span></div>
+          <p class="welcome-lede">Use a reader's response as a suggestion, approve professional edits one change at a time, then format the finished manuscript without changing a word.</p>
+          <div class="welcome-points"><span><b>01</b> Read as a reader</span><span><b>02</b> Edit with approval</span><span><b>03</b> Format when ready</span></div>
           <div class="mode-switch" role="tablist" aria-label="Choose a workspace">
             <button class="mode-switch-button is-active" type="button" role="tab" aria-selected="true" data-view-switch="beta">Beta reading <small>suggestions only</small></button>
+            <button class="mode-switch-button" type="button" role="tab" aria-selected="false" data-view-switch="editing">Editing workspace <small>approve each change</small></button>
             <button class="mode-switch-button" type="button" role="tab" aria-selected="false" data-view-switch="formatter">Book formatter <small>finished manuscript</small></button>
           </div>
         </div>
@@ -91,6 +93,17 @@
             <div class="brief-card"><div class="brief-card-head"><span>Reader suggestion brief</span><button class="quiet-button" type="button" data-copy-brief>Copy brief</button></div><p id="revisionBrief">Add your own reader response above to create a clear suggestion brief.</p></div>
             <div class="feedback-actions"><button class="button button-primary" type="button" data-download-feedback>Download reader feedback</button><button class="button button-quiet" type="button" data-download-project>Backup project</button></div>
           </aside>
+        </div>
+      </section>
+
+      <section class="editing section-shell app-view" id="editing" data-view="editing" hidden>
+        <div class="editing-intro"><p class="eyebrow">Author controlled editing</p><h2>Edit with a paper trail, not a black box.</h2><p>Choose the kind of pass you want, or let the desk recommend a safe starting point. Proposed changes are kept separate from your original and stay pending until you approve or reject them.</p><div class="editing-integrity"><span>Original preserved</span><span>Reasons attached</span><span>Approve or reject</span><span>Works offline in your browser</span></div></div>
+        <div class="editing-stage">
+          <aside class="editing-controls" aria-label="Editing controls">
+            <div class="editing-card"><p class="step-number">01</p><h3>Bring in the manuscript</h3><label class="field-label" for="editTitle">Project title</label><input class="text-input" id="editTitle" placeholder="For example, The Night Garden" autocomplete="off" /><label class="field-label" for="editInput">Manuscript or chapter text</label><div class="paste-tools"><button class="button button-quiet" type="button" data-edit-paste>Paste from clipboard</button><span>Or paste directly below.</span></div><textarea class="manuscript-input edit-source-input" id="editInput" placeholder="Paste the manuscript you want to edit..."></textarea><label class="button button-primary file-button format-file-button" for="editFileInput">Choose manuscript<input id="editFileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,.docx,.pdf,text/plain,text/markdown,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label><div class="drop-zone" id="editDropZone" tabindex="0" role="button" aria-controls="editFileInput">Drop a TXT, Markdown, HTML, DOCX, or PDF here.</div></div>
+            <div class="editing-card"><p class="step-number">02</p><h3>Choose the editing pass</h3><label class="field-label" for="editType">Editing goal</label><select class="text-input format-select" id="editType"><option value="auto">Help me choose</option><option value="developmental">Developmental review</option><option value="structural">Structure and pacing</option><option value="copyedit">Copyediting</option><option value="line">Line editing</option><option value="proofreading">Proofreading</option><option value="continuity">Continuity check</option><option value="sensitivity">Sensitivity review</option></select><p class="format-recommendation" id="editRecommendation">Load a manuscript and the desk will suggest a sensible starting pass.</p><label class="field-label" for="editBrief">Author's brief</label><textarea class="feedback-area" id="editBrief" placeholder="Tell the desk what to protect, what to look for, and who the reader is."></textarea><button class="button button-primary large-button" type="button" data-start-editing>Start suggested edit <span aria-hidden="true">↗</span></button><p class="micro-note">Mechanical passes can suggest safe text changes. Developmental, structural, continuity, and sensitivity passes create review notes instead of pretending to replace a specialist editor.</p></div>
+          </aside>
+          <section class="editing-results" aria-labelledby="editingResultsHeading"><div class="editing-results-head"><div><p class="eyebrow">03 · Review changes</p><h3 id="editingResultsHeading">Suggested edits</h3></div><span class="saved-state" id="editSavedState">Nothing started</span></div><div class="editing-summary" id="editingSummary"><strong>Your original stays untouched.</strong><span>Load a manuscript, choose a pass, and start when you are ready. Every suggestion will show the reason for the change.</span></div><div class="edit-toolbar" id="editToolbar" hidden><button class="button button-primary" type="button" data-approve-all>Approve all</button><button class="button button-quiet" type="button" data-reject-all>Reject all</button><button class="button button-quiet" type="button" data-reset-edits>Start over</button></div><div class="edit-suggestions" id="editSuggestions"></div><div class="editing-export" id="editingExport" hidden><div><strong>04 · Export the paper trail</strong><span>Download the original, approved manuscript, or a comparison that carries the reasons and approval status.</span></div><div class="editing-export-actions"><button class="button button-primary" type="button" data-download-edited>Download edited TXT</button><button class="button button-quiet" type="button" data-download-edited-html>Download edited HTML</button><button class="button button-quiet" type="button" data-download-edited-doc>Download edited DOC</button><button class="button button-quiet" type="button" data-download-comparison>Download comparison</button><button class="button button-quiet" type="button" data-download-edit-doc>Download Word review</button><button class="button button-quiet" type="button" data-download-edit-json>Download edit backup</button></div></div></section>
         </div>
       </section>
 
