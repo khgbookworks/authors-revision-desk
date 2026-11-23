@@ -72,7 +72,7 @@ function loadFormatterState() {
   }
 }
 
-function defaultEditor() { return { title: "", sourceText: "", editType: "auto", brief: "", segments: [], suggestions: [], generated: false, updatedAt: null }; }
+function defaultEditor() { return { title: "", sourceText: "", editType: "auto", brief: "", voice: "", tone: "", audience: "", protectedPhrases: "", instructions: "", segments: [], suggestions: [], generated: false, updatedAt: null }; }
 function loadEditorState() {
   try {
     const saved = JSON.parse(localStorage.getItem(editorStorageKey));
@@ -340,6 +340,11 @@ function renderEditingWorkspace() {
   $("#editInput").value = editor.sourceText || "";
   $("#editType").value = editor.editType || "auto";
   $("#editBrief").value = editor.brief || "";
+  $("#editVoice").value = editor.voice || "";
+  $("#editTone").value = editor.tone || "";
+  $("#editAudience").value = editor.audience || "";
+  $("#editProtected").value = editor.protectedPhrases || "";
+  $("#editInstructions").value = editor.instructions || "";
   updateEditingRecommendation();
   const suggestions = $("#editSuggestions");
   const toolbar = $("#editToolbar");
@@ -357,7 +362,7 @@ function renderEditingWorkspace() {
   $("#editingSummary").innerHTML = `<strong>${editor.suggestions.length} ${editor.suggestions.length === 1 ? "suggestion" : "suggestions"} from a ${escapeHtml(editTypeLabel(effectiveEditType()))} pass.</strong><span>${approved} approved · ${rejected} rejected · ${pending} pending. Only approved changes appear in the edited manuscript download.</span>`;
   toolbar.hidden = false;
   exportBox.hidden = false;
-  suggestions.innerHTML = editor.suggestions.map((item, index) => `<article class="edit-suggestion ${item.status}" data-edit-index="${index}"><div class="edit-suggestion-head"><div><span class="suggestion-number">${String(index + 1).padStart(2, "0")}</span><strong>${suggestionStatusLabel(item.status)}</strong></div><span class="edit-location">Section ${item.index + 1}</span></div><div class="edit-diff" aria-label="Suggested change">${renderInlineDiff(item.original, item.proposed)}</div><label class="field-label" for="edit-proposed-${index}">Proposed wording</label><textarea class="feedback-area edit-proposed" id="edit-proposed-${index}" data-edit-proposed="${index}">${escapeHtml(item.proposed)}</textarea><div class="edit-reason"><strong>Why this is suggested</strong><span>${escapeHtml(item.reason)}</span></div><div class="edit-suggestion-actions"><button class="button button-primary" type="button" data-approve-edit="${index}">Approve</button><button class="button button-quiet" type="button" data-reject-edit="${index}">Reject</button></div></article>`).join("");
+  suggestions.innerHTML = editor.suggestions.map((item, index) => `<article class="edit-suggestion ${item.status}" data-edit-index="${index}"><div class="edit-suggestion-head"><div><span class="suggestion-number">${String(index + 1).padStart(2, "0")}</span><strong>${suggestionStatusLabel(item.status)}</strong></div><span class="edit-location">Section ${item.index + 1}${item.source === "ai" ? " · AI suggestion" : " · desk suggestion"}</span></div><div class="edit-diff" aria-label="Suggested change">${renderInlineDiff(item.original, item.proposed)}</div><label class="field-label" for="edit-proposed-${index}">Proposed wording</label><textarea class="feedback-area edit-proposed" id="edit-proposed-${index}" data-edit-proposed="${index}">${escapeHtml(item.proposed)}</textarea><div class="edit-reason"><strong>Why this is suggested</strong><span>${escapeHtml(item.reason)}</span></div><div class="edit-suggestion-actions"><button class="button button-primary" type="button" data-approve-edit="${index}">Approve</button><button class="button button-quiet" type="button" data-reject-edit="${index}">Reject</button></div></article>`).join("");
   $$('[data-edit-proposed]').forEach((field) => field.oninput = (event) => { const item = editor.suggestions[Number(event.target.dataset.editProposed)]; item.proposed = event.target.value; item.status = "pending"; persistEditor(); renderEditingWorkspace(); });
   $$('[data-approve-edit]').forEach((button) => button.onclick = () => { editor.suggestions[Number(button.dataset.approveEdit)].status = "approved"; persistEditor(); renderEditingWorkspace(); });
   $$('[data-reject-edit]').forEach((button) => button.onclick = () => { editor.suggestions[Number(button.dataset.rejectEdit)].status = "rejected"; persistEditor(); renderEditingWorkspace(); });
@@ -403,7 +408,70 @@ function downloadEditedHtml() { downloadFile(`${slug(editor.title)}-edited-manus
 function downloadEditedDoc() { downloadFile(`${slug(editor.title)}-edited-manuscript.doc`, editedManuscriptHtml(), "application/msword"); showToast("Edited DOC download started."); }
 function downloadEditingComparison() { downloadFile(`${slug(editor.title)}-suggested-edits.html`, editingComparisonHtml(), "text/html"); showToast("Comparison download started."); }
 function downloadEditingReviewDoc() { downloadFile(`${slug(editor.title)}-word-review.doc`, editingReviewDoc(), "application/msword"); showToast("Word review download started."); }
-function downloadEditingBackup() { downloadFile(`${slug(editor.title)}-editing-backup.json`, JSON.stringify({ ...editor, editedText: composeEditedText() }, null, 2), "application/json"); showToast("Editing backup download started."); }
+function xmlEscape(value = "") { return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[char])); }
+function wordRuns(text, deleted = false) { return `<w:r><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r>`; }
+function docxParagraph(text, revision = null, commentId = null) {
+  if (!revision) return `<w:p>${wordRuns(text)}</w:p>`;
+  const author = "Author's Revision Desk";
+  const date = new Date().toISOString();
+  const commentStart = commentId === null ? "" : `<w:commentRangeStart w:id="${commentId}"/>`;
+  const commentEnd = commentId === null ? "" : `<w:commentRangeEnd w:id="${commentId}"/>`;
+  const reference = commentId === null ? "" : `<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:commentReference w:id="${commentId}"/></w:r>`;
+  return `<w:p>${commentStart}<w:del w:id="${revision.id}" w:author="${xmlEscape(author)}" w:date="${date}">${wordRuns(revision.original, true).replace("<w:t", "<w:delText")}</w:del><w:ins w:id="${revision.id + 1000}" w:author="${xmlEscape(author)}" w:date="${date}">${wordRuns(revision.proposed)}</w:ins>${commentEnd}${reference}</w:p>`;
+}
+async function downloadNativeTrackChanges() {
+  if (!window.JSZip) { showToast("DOCX helper is still loading. Try again in a moment."); return; }
+  if (!editor.generated) { showToast("Start an editing pass before exporting Word revisions."); return; }
+  const zip = new window.JSZip();
+  const title = editor.title || "Editing review";
+  const comments = [];
+  const body = editor.segments.map((segment, index) => {
+    const item = editor.suggestions.find((suggestion) => suggestion.index === index);
+    if (!item || item.status === "rejected" || item.original === item.proposed) return docxParagraph(segment);
+    const commentId = comments.length;
+    comments.push({ id: commentId, reason: item.reason });
+    return docxParagraph(segment, { ...item, id: commentId + 1 }, commentId);
+  }).join("");
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>`;
+  const commentsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${comments.map((comment) => `<w:comment w:id="${comment.id}" w:author="Author's Revision Desk" w:date="${new Date().toISOString()}"><w:p>${wordRuns(`Reason for suggestion: ${comment.reason}`)}</w:p></w:comment>`).join("")}</w:comments>`;
+  zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`);
+  zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`);
+  zip.file("word/_rels/document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="comments.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  zip.file("word/document.xml", documentXml); zip.file("word/comments.xml", commentsXml);
+  zip.file("word/styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="character" w:styleId="CommentReference"><w:name w:val="Comment Reference"/></w:style></w:styles>`);
+  zip.file("docProps/core.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${xmlEscape(title)}</dc:title><dc:creator>Author's Revision Desk</dc:creator><cp:lastModifiedBy>Author's Revision Desk</cp:lastModifiedBy></cp:coreProperties>`);
+  const blob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  downloadFile(`${slug(title)}-track-changes.docx`, blob, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"); showToast("Native Word Track Changes download started.");
+}
+function downloadEditingBackup() { downloadFile(`${slug(editor.title)}-editing-backup.json`, JSON.stringify({ ...editor, editedText: composeEditedText(), syncNote: "Google Docs synchronization requires an authorized server bridge." }, null, 2), "application/json"); showToast("Editing backup download started."); }
+async function startAiEdit() {
+  const source = editor.sourceText || $("#editInput").value.trim();
+  if (!source) { showToast("Load or paste a manuscript before running the AI suggestion pass."); return; }
+  editor.title = $("#editTitle").value.trim() || editor.title || "Untitled editing project";
+  editor.sourceText = source; editor.segments = splitEditSegments(source);
+  const payload = { title: editor.title, text: source, editType: effectiveEditType(), brief: editor.brief, voice: editor.voice, tone: editor.tone, audience: editor.audience, protectedPhrases: editor.protectedPhrases, instructions: editor.instructions };
+  const button = $("[data-start-ai-edit]"); button.disabled = true; button.textContent = "Preparing suggestions…";
+  try {
+    const response = await fetch("/api/ai-edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    if (!response.ok) throw new Error("The secure AI bridge is not configured in this preview.");
+    const data = await response.json();
+    editor.suggestions = (data.suggestions || []).map((item, index) => ({ id: makeId(), index: Number.isInteger(item.index) ? item.index : index, original: item.original || editor.segments[index] || "", proposed: item.proposed || editor.segments[index] || "", reason: item.reason || "AI suggestion. Check it against your voice before approving.", confidence: item.confidence || "unrated", source: "ai", status: "pending" }));
+    editor.generated = true; persistEditor("AI suggestions saved locally"); renderEditingWorkspace(); showToast(`${editor.suggestions.length} AI suggestions are ready for your decision.`);
+  } catch (error) { showToast(`${error.message} Local conservative suggestions are still available.`); }
+  finally { button.disabled = false; button.textContent = "Run optional AI suggestion pass"; }
+}
+function googleDocIdentifier(value) { const match = String(value || "").match(/\/document\/d\/([\w-]+)/); return match ? match[1] : String(value || "").trim(); }
+async function googleSync(action) {
+  const docId = googleDocIdentifier($("#googleDocId").value);
+  if (!docId && action === "sync") { showToast("Add a Google Doc ID or URL first."); return; }
+  const status = $("#googleSyncStatus"); status.textContent = "Checking the authorized Google Workspace bridge…";
+  try {
+    const response = await fetch(`/api/google-docs/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ documentId: docId, title: editor.title, sourceText: editor.sourceText, suggestions: editor.suggestions }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Google Workspace is not connected to this preview.");
+    status.textContent = data.message || "Google Docs synchronization completed."; if (data.url) window.open(data.url, "_blank", "noopener"); showToast(status.textContent);
+  } catch (error) { status.textContent = `${error.message} Download the native DOCX or backup until Google Workspace is authorized.`; showToast("Google Docs sync is not connected."); }
+}
 
 function bindGlobalActions() {
   $("[data-create-project]").onclick = () => createProject($("#projectTitle").value, $("#manuscriptInput").value);
@@ -430,7 +498,13 @@ function bindGlobalActions() {
   $("#editInput").oninput = (event) => { editor.sourceText = event.target.value; editor.generated = false; updateEditingRecommendation(); persistEditor(); };
   $("#editType").onchange = (event) => { editor.editType = event.target.value; updateEditingRecommendation(); persistEditor(); };
   $("#editBrief").oninput = (event) => { editor.brief = event.target.value; persistEditor(); };
+  $("#editVoice").oninput = (event) => { editor.voice = event.target.value; persistEditor(); };
+  $("#editTone").oninput = (event) => { editor.tone = event.target.value; persistEditor(); };
+  $("#editAudience").oninput = (event) => { editor.audience = event.target.value; persistEditor(); };
+  $("#editProtected").oninput = (event) => { editor.protectedPhrases = event.target.value; persistEditor(); };
+  $("#editInstructions").oninput = (event) => { editor.instructions = event.target.value; persistEditor(); };
   $("[data-start-editing]").onclick = startSuggestedEdit;
+  $("[data-start-ai-edit]").onclick = startAiEdit;
   $("[data-edit-paste]").onclick = async () => { try { const text = await navigator.clipboard.readText(); $("#editInput").value = text; editor.sourceText = text; editor.generated = false; persistEditor(); updateEditingRecommendation(); showToast(text ? "Manuscript pasted into the editing workspace." : "Your clipboard is empty."); } catch (error) { showToast("Tap inside the editing text box and paste normally."); $("#editInput").focus(); } };
   $("#editFileInput").onchange = async (event) => { const text = await readFileInto(event.target.files[0], $("#editInput"), $("#editTitle"), "Manuscript loaded. Choose an editing pass when you are ready."); if (text) { editor.sourceText = text; editor.generated = false; persistEditor(); updateEditingRecommendation(); } };
   $("#editDropZone").ondragover = (event) => { event.preventDefault(); $("#editDropZone").classList.add("is-dragging"); };
@@ -446,7 +520,10 @@ function bindGlobalActions() {
   $("[data-download-edited-doc]").onclick = downloadEditedDoc;
   $("[data-download-comparison]").onclick = downloadEditingComparison;
   $("[data-download-edit-doc]").onclick = downloadEditingReviewDoc;
+  $("[data-download-track-docx]").onclick = downloadNativeTrackChanges;
   $("[data-download-edit-json]").onclick = downloadEditingBackup;
+  $("[data-google-sync]").onclick = () => googleSync("sync");
+  $("[data-google-create]").onclick = () => googleSync("create");
 
   $$("[data-view-switch]").forEach((button) => button.addEventListener("click", () => { const view = button.dataset.viewSwitch; history.replaceState(null, "", view === "formatter" ? "#formatter" : view === "editing" ? "#editing" : "#workspace"); switchView(view); $(view === "formatter" ? "#formatter" : view === "editing" ? "#editing" : "#workspace").scrollIntoView({ behavior: "smooth" }); }));
   $$("[data-view-link]").forEach((link) => link.addEventListener("click", () => { const view = link.dataset.viewLink; setTimeout(() => switchView(view), 0); }));

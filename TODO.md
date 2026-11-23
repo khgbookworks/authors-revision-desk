@@ -64,3 +64,18 @@ Acceptance criteria:
 8. The app provides separate downloads for the approved manuscript as TXT, clean HTML, and Word-compatible DOC, plus an HTML comparison, a Word-compatible review document with visible insertions and deletions, and a JSON decision backup.
 9. Comparison exports retain the reason for each suggested edit and clearly state that the author must review the changes in Word or Google Docs.
 10. Editing state, approval status, and the original source persist locally in the browser and the layout remains usable on small screens with reduced-motion support.
+
+## Native DOCX Track Changes and optional AI profile
+Acceptance criteria:
+1. The editing workspace offers a real `.docx` package rather than only HTML with visible markup.
+2. The package contains Word `w:ins` and `w:del` revision elements with author, date, and revision identifiers.
+3. Reasons remain available as Word comments or a companion review record.
+4. Authors can define voice, tone, audience, protected phrases, and custom instructions.
+5. AI suggestions are structured, labelled, pending by default, and never overwrite the original.
+
+## Google Docs synchronization boundary
+Acceptance criteria:
+1. The workspace exposes a Google Docs sync path that uses an authorized server-side Workspace connector.
+2. Existing-document edits use Google Docs Suggesting mode when credentials are available.
+3. New-document handoff returns a Google Docs link after successful creation.
+4. When no credentials are connected, the interface clearly reports that sync is unavailable and provides safe local exports instead of faking synchronization.

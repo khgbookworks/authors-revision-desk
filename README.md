@@ -73,3 +73,11 @@ The app uses relative asset paths so it works from the repository subpath. The E
 ## Project structure
 
 `index.html` contains the beta reading, author-controlled editing, and formatter views. `styles.css` contains the responsive editorial interface. `app.js` contains manuscript parsing, chapter navigation, suggestion capture, approval tracking, comparison generation, author-controlled copies, formatter preferences, preview generation, local persistence, and downloads. `manus-routes.json` declares the app routes. `build.js` creates the static `dist/` output.
+
+## Native Word revisions, AI profiles, and Google Docs
+
+The editing workspace now includes a native `.docx` export with OOXML `w:ins` and `w:del` revision elements, revision author/date metadata, and Word comments containing the reason for each proposed change. Rejected suggestions remain unchanged; pending and approved suggestions are represented in the review package so the author can decide in Word. The existing HTML review remains a readable companion export.
+
+Authors can optionally define the voice to protect, editing tone, intended audience, protected phrases or spellings, and custom instructions. The optional AI pass uses a server-side structured-output bridge when the local preview is configured with the Manus model proxy. AI output is always labelled as a suggestion and remains pending until the author approves it. GitHub Pages remains a static build, so it falls back to the conservative local pass when no server bridge is available.
+
+Google Docs controls use an authorized server-side Workspace bridge. When Workspace credentials are unavailable, the app says so rather than claiming live synchronization; native DOCX, HTML, and JSON exports remain available. Existing-document synchronization is designed for Google Docs Suggesting mode and returns a document link only after the bridge reports success.
