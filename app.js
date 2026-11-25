@@ -447,18 +447,35 @@ function downloadEditingBackup() { downloadFile(`${slug(editor.title)}-editing-b
 async function startAiEdit() {
   const source = editor.sourceText || $("#editInput").value.trim();
   if (!source) { showToast("Load or paste a manuscript before running the AI suggestion pass."); return; }
-  editor.title = $("#editTitle").value.trim() || editor.title || "Untitled editing project";
-  editor.sourceText = source; editor.segments = splitEditSegments(source);
-  const payload = { title: editor.title, text: source, editType: effectiveEditType(), brief: editor.brief, voice: editor.voice, tone: editor.tone, audience: editor.audience, protectedPhrases: editor.protectedPhrases, instructions: editor.instructions };
-  const button = $("[data-start-ai-edit]"); button.disabled = true; button.textContent = "Preparing suggestions…";
+  const button = $("[data-start-ai-edit]");
+  button.disabled = true;
+  button.textContent = "Checking AI availability…";
   try {
+    const healthResponse = await fetch("/api/health", { cache: "no-store" });
+    const health = await healthResponse.json();
+    if (!healthResponse.ok || !health.features?.builtInAI) {
+      showToast("Built-in AI is not enabled yet. Your manuscript has not been sent to an AI service. Local conservative suggestions remain available.");
+      return;
+    }
+    editor.title = $("#editTitle").value.trim() || editor.title || "Untitled editing project";
+    editor.sourceText = source;
+    editor.segments = splitEditSegments(source);
+    const payload = { title: editor.title, text: source, editType: effectiveEditType(), brief: editor.brief, voice: editor.voice, tone: editor.tone, audience: editor.audience, protectedPhrases: editor.protectedPhrases, instructions: editor.instructions };
+    button.textContent = "Preparing suggestions…";
     const response = await fetch("/api/ai-edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!response.ok) throw new Error("The secure AI bridge is not configured in this preview.");
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "The secure AI service could not complete this request.");
     editor.suggestions = (data.suggestions || []).map((item, index) => ({ id: makeId(), index: Number.isInteger(item.index) ? item.index : index, original: item.original || editor.segments[index] || "", proposed: item.proposed || editor.segments[index] || "", reason: item.reason || "AI suggestion. Check it against your voice before approving.", confidence: item.confidence || "unrated", source: "ai", status: "pending" }));
-    editor.generated = true; persistEditor("AI suggestions saved locally"); renderEditingWorkspace(); showToast(`${editor.suggestions.length} AI suggestions are ready for your decision.`);
-  } catch (error) { showToast(`${error.message} Local conservative suggestions are still available.`); }
-  finally { button.disabled = false; button.textContent = "Run optional AI suggestion pass"; }
+    editor.generated = true;
+    persistEditor("AI suggestions saved locally");
+    renderEditingWorkspace();
+    showToast(`${editor.suggestions.length} AI suggestions are ready for your decision.`);
+  } catch (error) {
+    showToast(`${error.message} Local conservative suggestions are still available.`);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Run optional AI suggestion pass";
+  }
 }
 function googleDocIdentifier(value) { const match = String(value || "").match(/\/document\/d\/([\w-]+)/); return match ? match[1] : String(value || "").trim(); }
 async function googleSync(action) {
@@ -466,6 +483,11 @@ async function googleSync(action) {
   if (!docId && action === "sync") { showToast("Add a Google Doc ID or URL first."); return; }
   const status = $("#googleSyncStatus"); status.textContent = "Checking the authorized Google Workspace bridge…";
   try {
+    const healthResponse = await fetch("/api/health", { cache: "no-store" });
+    const health = await healthResponse.json();
+    if (!healthResponse.ok || !health.features?.googleDocs) {
+      throw new Error("Google Docs integration is not enabled yet. Your manuscript has not been sent to Google.");
+    }
     const response = await fetch(`/api/google-docs/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ documentId: docId, title: editor.title, sourceText: editor.sourceText, suggestions: editor.suggestions }) });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.message || "Google Workspace is not connected to this preview.");
