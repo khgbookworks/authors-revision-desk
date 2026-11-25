@@ -3,7 +3,11 @@ export async function onRequestGet() {
     JSON.stringify({
       ok: true,
       service: "authors-revision-desk",
-      platform: "cloudflare-pages"
+      platform: "cloudflare-pages",
+      features: {
+        builtInAI: false,
+        googleDocs: false
+      }
     }),
     {
       headers: {
