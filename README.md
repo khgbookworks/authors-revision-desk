@@ -62,6 +62,19 @@ npm run build
 
 The published output is in `dist/`.
 
+## Cloudflare Pages migration
+
+The `cloudflare-migration` branch is being prepared for Cloudflare Pages. The existing GitHub Pages deployment and `main` branch are being kept unchanged while the migration is tested.
+
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Cloudflare Pages Functions live in the root `functions/` directory.
+- `GET /api/health` reports deployment status and optional service availability.
+- `POST /api/ai-edit` and the Google Docs endpoints return an explicit unavailable response until their integrations are implemented.
+- The browser checks the health response before sending manuscript content to either optional service.
+
+Do not disable the existing GitHub Pages workflow or merge the migration branch until the Cloudflare Pages build, API health check, manuscript import, editing, and exports have been tested.
+
 ## GitHub Pages
 
 GitHub Pages is configured to publish the `main` branch from the repository root. The public app is available at:
@@ -78,6 +91,6 @@ The app uses relative asset paths so it works from the repository subpath. The E
 
 The editing workspace now includes a native `.docx` export with OOXML `w:ins` and `w:del` revision elements, revision author/date metadata, and Word comments containing the reason for each proposed change. Rejected suggestions remain unchanged; pending and approved suggestions are represented in the review package so the author can decide in Word. The existing HTML review remains a readable companion export.
 
-Authors can optionally define the voice to protect, editing tone, intended audience, protected phrases or spellings, and custom instructions. The optional AI pass uses a server-side structured-output bridge when the local preview is configured with the Manus model proxy. AI output is always labelled as a suggestion and remains pending until the author approves it. GitHub Pages remains a static build, so it falls back to the conservative local pass when no server bridge is available.
+Authors can optionally define the voice to protect, editing tone, intended audience, protected phrases or spellings, and custom instructions. AI output is intended to remain a suggestion and stay pending until the author approves it. The Cloudflare migration branch currently reports built-in AI as unavailable; the interface checks the service status before sending manuscript text. The Workers AI integration will be added and tested in a later migration phase.
 
-Google Docs controls use an authorized server-side Workspace bridge. When Workspace credentials are unavailable, the app says so rather than claiming live synchronization; native DOCX, HTML, and JSON exports remain available. Existing-document synchronization is designed for Google Docs Suggesting mode and returns a document link only after the bridge reports success.
+Google Docs controls are not connected in the Cloudflare migration branch yet. The interface checks the service status before sending manuscript text, and the API returns an explicit unavailable response until an authorized integration is implemented. Native DOCX, HTML, and JSON exports remain available.
