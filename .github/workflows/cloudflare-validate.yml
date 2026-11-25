@@ -1,0 +1,36 @@
+name: Validate Cloudflare migration
+
+on:
+  push:
+    branches:
+      - cloudflare-migration
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check functions/api/health.js
+          node --check functions/api/ai-edit.js
+          node --check "functions/api/google-docs/[action].js"
+      - name: Build static application
+        run: npm run build
+      - name: Verify build output
+        run: |
+          test -s dist/index.html
+          test -s dist/app.js
+          test -s dist/styles.css
