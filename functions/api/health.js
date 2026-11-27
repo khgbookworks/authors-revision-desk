@@ -18,7 +18,7 @@ export async function onRequestGet({ env }) {
         versionHistory: backendReady,
         privateCollaborationLinks: backendReady,
         authorReviewDecisions: backendReady,
-        builtInAI: false,
+        builtInAI: Boolean(env.AI),
         googleDocs: false
       }
     }),
