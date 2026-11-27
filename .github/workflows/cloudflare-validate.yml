@@ -74,12 +74,14 @@ jobs:
             "formatDedication", "formatAcknowledgements", "formatGutter",
             "formatFontSize", "formatLineSpacing", "formatIndent", "formatMargin",
             "includeRunningHeaders", "bookType", "trimSize", "formatFont",
-            "chapterStyle", "includeFrontMatter", "includeToc", "includePageNumbers"
+            "chapterStyle", "includeFrontMatter", "includeToc", "includePageNumbers",
+            "formatQualityReport", "data-format-qa"
           ];
           const missing = ids.filter((id) => !html.includes(`id="${id}"`));
           if (missing.length) throw new Error(`Missing formatter controls: ${missing.join(", ")}`);
           const requiredCode = [
             "function formatBookMarkup", "function formatBookCss", "async function exportDocx",
+            "function sanitizeRichHtml", "function richHtmlToDocxBlocks", "function runFormatterQualityChecks",
             "function exportEpub", 'properties="nav"', "@page:left", "@page:right",
             '$("[data-download-docx]").onclick = exportDocx'
           ];
