@@ -7,8 +7,11 @@ const shares = readFileSync("functions/api/projects/[id]/shares.js", "utf8");
 const reviews = readFileSync("functions/api/reviews/[shareId].js", "utf8");
 const projectApi = readFileSync("functions/api/projects/[id].js", "utf8");
 const createApi = readFileSync("functions/api/projects/index.js", "utf8");
+const aiEditApi = readFileSync("functions/api/ai-edit.js", "utf8");
+const betaApi = readFileSync("functions/api/beta-read.js", "utf8");
+const bookApi = readFileSync("functions/api/beta-read/book.js", "utf8");
 
-for (const table of ["projects", "project_versions", "project_shares", "review_decisions"]) {
+for (const table of ["projects", "project_versions", "project_shares", "review_decisions", "ai_usage"]) {
   assert.match(schema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`), `Missing ${table} table`);
 }
 assert.match(schema, /version_id TEXT NOT NULL REFERENCES project_versions/);
@@ -18,6 +21,11 @@ assert.match(projectApi, /await env\.DB\.batch\(/);
 assert.match(createApi, /await env\.DB\.batch\(/);
 assert.match(reviews, /const versionId = share\.version_id/);
 assert.match(reviews, /share\.role !== "author_review"/);
+assert.match(aiEditApi, /reserveAiUsage/);
+assert.match(betaApi, /reserveAiUsage/);
+assert.match(bookApi, /reserveAiUsage/);
+assert.match(aiEditApi, /authorizeOwner/);
+assert.match(betaApi, /authorizeOwner/);
 
 const id = newId("prj");
 assert.match(id, /^prj_[a-f0-9]{32}$/);
