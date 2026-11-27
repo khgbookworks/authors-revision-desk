@@ -49,6 +49,15 @@
         <div class="workspace-topline">
           <div><p class="eyebrow">Beta reading workspace</p><h2 id="workspaceHeading">Start a new beta read</h2></div>
           <div class="workspace-actions"><span class="mode-note">Suggestions only</span><button class="button button-quiet" type="button" data-new-project>New project</button><label class="button button-primary file-button" for="fileInput">Choose a manuscript file<input id="fileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,.docx,.pdf,text/plain,text/markdown,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label></div>
+        <div class="cloud-workspace-bar" aria-label="Cloud project controls">
+          <span id="cloudStatus" class="cloud-status">Checking cloud workspace…</span>
+          <div class="cloud-workspace-actions">
+            <button class="button button-quiet" type="button" data-cloud-create>Create cloud copy</button>
+            <button class="button button-quiet" type="button" data-cloud-save hidden>Save cloud version</button>
+            <button class="button button-primary" type="button" data-cloud-share hidden>Create author review link</button>
+          </div>
+          <p class="micro-note">Cloud backup is optional. Manuscripts are sent to Cloudflare only when you create or save a cloud project. Private keys stay in this browser.</p>
+        </div>
         </div>
 
         <div class="onboarding" id="onboarding">
