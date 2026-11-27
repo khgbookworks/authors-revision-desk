@@ -34,6 +34,20 @@ jobs:
           node --check review.js
           node --check scripts/validate-backend.mjs
           node scripts/validate-backend.mjs
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          connection = sqlite3.connect(":memory:")
+          connection.executescript(Path("migrations/0001_manuscript_workspace.sql").read_text())
+          tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+          required = {"projects", "project_versions", "project_shares", "review_decisions"}
+          missing = required - tables
+          if missing:
+              raise SystemExit(f"Missing database tables: {sorted(missing)}")
+          if connection.execute("PRAGMA foreign_key_check").fetchall():
+              raise SystemExit("Database migration contains foreign-key violations.")
+          print("D1 migration SQL verified with SQLite.")
+          PY
           node --check functions/api/ai-edit.js
           node --check "functions/api/google-docs/[action].js"
           test -s migrations/0001_manuscript_workspace.sql
