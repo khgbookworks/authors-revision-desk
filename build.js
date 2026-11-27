@@ -2,7 +2,7 @@ import { mkdir, copyFile, rm } from "node:fs/promises";
 
 await rm("dist", { recursive: true, force: true });
 await mkdir("dist", { recursive: true });
-for (const file of ["index.html", "styles.css", "app.js", "manus-routes.json"]) {
+for (const file of ["index.html", "styles.css", "app.js", "review.html", "review.css", "review.js", "manus-routes.json"]) {
   await copyFile(file, `dist/${file}`);
 }
 console.log("Built Revision Guide into dist/");
