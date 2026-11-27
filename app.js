@@ -610,6 +610,7 @@ function textBlocksHtml(text, type) {
   return blocks.map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br>")}</p>`).join("");
 }
 
+// Layout-only renderer: source manuscript text is never rewritten here.
 function formatBookMarkup(includeDocument = false) {
   const type = effectiveBookType();
   const settings = formatter.settings;
