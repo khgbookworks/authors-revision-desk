@@ -43,12 +43,14 @@ export async function onRequestPut({ request, env, params }) {
       customMetadata: { projectId: project.id, versionId, versionNumber: String(versionNumber) }
     });
     try {
-      await env.DB.prepare(
-        "INSERT INTO project_versions (id, project_id, version_number, label, object_key, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, 'owner')"
-      ).bind(versionId, project.id, versionNumber, label, objectKey, now).run();
-      await env.DB.prepare(
-        "UPDATE projects SET current_version_id = ?, updated_at = ? WHERE id = ?"
-      ).bind(versionId, now, project.id).run();
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO project_versions (id, project_id, version_number, label, object_key, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, 'owner')"
+        ).bind(versionId, project.id, versionNumber, label, objectKey, now),
+        env.DB.prepare(
+          "UPDATE projects SET current_version_id = ?, updated_at = ? WHERE id = ?"
+        ).bind(versionId, now, project.id)
+      ]);
     } catch (error) {
       await env.MANUSCRIPTS.delete(objectKey);
       throw error;
