@@ -228,11 +228,28 @@ async function refreshCloudProject(silent = false, restoreSnapshot = false) {
     }
     const root = $("#cloudReviewList");
     if (root) {
-      root.innerHTML = decisions.length ? decisions.map((item) => {
+      const decisionMarkup = decisions.map((item) => {
         const suggestionIndex = editor.suggestions.findIndex((entry) => entry.id === item.suggestion_id);
         const label = suggestionIndex >= 0 ? `Suggestion ${suggestionIndex + 1}` : item.suggestion_id.startsWith("chapter-note-") ? "Chapter comment" : item.suggestion_id;
         return `<article class="cloud-review-item"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(item.decision)} · ${escapeHtml(item.share_label || "Review link")}</span><p>${escapeHtml(item.comment || "No comment attached.")}</p></article>`;
-      }).join("") : '<p class="micro-note">No author responses have been submitted yet.</p>';
+      }).join("");
+      const submissions = result.editorSubmissions || [];
+      const editorMarkup = submissions.map((item) => {
+        const imported = editor.suggestions.some((entry) => entry.collaboratorSubmissionId === item.id);
+        return `<article class="cloud-review-item"><strong>Editor proposal · ${escapeHtml(item.category || "Editorial")}</strong><span>${escapeHtml(item.location || "Location not specified")} · ${new Date(item.created_at).toLocaleString()}</span><p><b>Original:</b> ${escapeHtml(item.original)}</p><p><b>Proposed:</b> ${escapeHtml(item.proposed)}</p><p><b>Reason:</b> ${escapeHtml(item.reason)}</p><button class="button button-quiet" type="button" data-import-editor-submission="${escapeHtml(item.id)}" ${imported ? "disabled" : ""}>${imported ? "Added to editing queue" : "Add to editing queue"}</button></article>`;
+      }).join("");
+      root.innerHTML = (decisionMarkup || editorMarkup) ? `<h4>Author responses</h4>${decisionMarkup || '<p class="micro-note">No author decisions yet.</p>'}<h4>Editor submissions</h4>${editorMarkup || '<p class="micro-note">No editor proposals yet.</p>'}` : '<p class="micro-note">No author or editor responses have been submitted yet.</p>';
+      root.querySelectorAll("[data-import-editor-submission]").forEach((button) => button.addEventListener("click", () => {
+        const item = submissions.find((entry) => entry.id === button.dataset.importEditorSubmission);
+        if (!item || editor.suggestions.some((entry) => entry.collaboratorSubmissionId === item.id)) return;
+        editor.suggestions.push({ id: makeId(), collaboratorSubmissionId: item.id, index: editor.suggestions.length, original: item.original, proposed: item.proposed, reason: item.reason, category: item.category, location: item.location, confidence: "human editor submission", source: "collaborator", status: "pending" });
+        editor.generated = true;
+        persistEditor("Editor proposal added for your review");
+        renderEditingWorkspace();
+        button.textContent = "Added to editing queue";
+        button.disabled = true;
+        showToast("Editor proposal added as pending. It has not changed your manuscript.");
+      }));
     }
     if (!silent) showToast(`Cloud project refreshed. ${decisions.length} author response(s) found.`);
   } catch (error) {
