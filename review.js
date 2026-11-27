@@ -91,6 +91,7 @@ async function saveDecision(card, suggestionId, decision, comment) {
 
 function renderChapters() {
   const chapters = reviewData.snapshot?.beta?.chapters || [];
+  const decisions = new Map((reviewData.decisions || []).map((item) => [item.suggestion_id, item]));
   const root = $("#reviewChapters");
   if (!chapters.length) {
     root.innerHTML = '<div class="review-message">No beta-reading chapters were included in this shared snapshot.</div>';
@@ -99,13 +100,15 @@ function renderChapters() {
   root.innerHTML = chapters.map((chapter, index) => {
     const feedback = chapter.feedback || {};
     const notes = Object.entries(feedback).filter(([, value]) => String(value || "").trim());
+    const chapterDecision = decisions.get(`chapter-note-${chapter.id}`);
     return `<article class="review-chapter">
       <details>
         <summary>${escapeHtml(chapter.title || `Chapter ${index + 1}`)}</summary>
         <div class="chapter-body">${escapeHtml(chapter.draft || "")}</div>
         ${notes.length ? `<div class="chapter-feedback"><strong>Reader notes</strong>${notes.map(([key, value]) => `<p><b>${escapeHtml(key.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`))}:</b> ${escapeHtml(value)}</p>`).join("")}</div>` : ""}
         <label for="chapter-comment-${index}">Comment on this chapter</label>
-        <textarea id="chapter-comment-${index}" placeholder="Share your thoughts about this chapter…"></textarea>
+        <textarea id="chapter-comment-${index}" placeholder="Share your thoughts about this chapter…">${escapeHtml(chapterDecision?.comment || "")}</textarea>
+        ${chapterDecision ? `<span class="review-status">Last comment saved ${new Date(chapterDecision.updated_at).toLocaleString()}</span>` : ""}
         <div class="review-actions"><button type="button" class="secondary" data-chapter-comment="${escapeHtml(chapter.id)}">Send chapter comment</button></div>
       </details>
     </article>`;
