@@ -7,7 +7,7 @@ export async function onRequestGet({ request, env, params }) {
     if (!share) return json({ ok: false, message: "This review link is invalid, expired, or revoked." }, 401);
     const version = await env.DB.prepare(
       "SELECT id, version_number, label, object_key, created_at FROM project_versions WHERE id = ? AND project_id = ?"
-    ).bind(share.current_version_id, share.project_id).first();
+    ).bind(share.version_id, share.project_id).first();
     const snapshot = await loadProjectSnapshot(env, version);
     const decisions = await env.DB.prepare(
       "SELECT suggestion_id, decision, comment, updated_at FROM review_decisions WHERE share_id = ? AND version_id = ? ORDER BY updated_at DESC"
@@ -35,7 +35,7 @@ export async function onRequestPost({ request, env, params }) {
     const suggestionId = String(payload.suggestionId || "").trim().slice(0, 160);
     const decision = String(payload.decision || "");
     const comment = String(payload.comment || "").trim().slice(0, 4000);
-    const versionId = String(payload.versionId || share.current_version_id);
+    const versionId = String(payload.versionId || share.version_id);
     if (!suggestionId) return json({ ok: false, message: "A suggestion ID is required." }, 400);
     if (!["accepted", "rejected", "commented"].includes(decision)) {
       return json({ ok: false, message: "Choose accepted, rejected, or commented." }, 400);
