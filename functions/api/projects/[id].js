@@ -24,7 +24,10 @@ export async function onRequestGet({ request, env, params }) {
     const editorSubmissions = await env.DB.prepare(
       "SELECT id, version_id, submission_json, created_at FROM editor_submissions WHERE project_id = ? ORDER BY created_at DESC"
     ).bind(project.id).all();
-    return json({ ok: true, project, currentVersion, isCurrentVersion: currentVersion.id === project.current_version_id, versions: versions.results || [], reviewDecisions: reviewDecisions.results || [], editorSubmissions: (editorSubmissions.results || []).map((item) => ({ id: item.id, version_id: item.version_id, created_at: item.created_at, ...JSON.parse(item.submission_json) })), snapshot });
+    const shares = await env.DB.prepare(
+      "SELECT id, role, label, created_at, expires_at, revoked_at FROM project_shares WHERE project_id = ? ORDER BY created_at DESC"
+    ).bind(project.id).all();
+    return json({ ok: true, project, currentVersion, isCurrentVersion: currentVersion.id === project.current_version_id, versions: versions.results || [], reviewDecisions: reviewDecisions.results || [], editorSubmissions: (editorSubmissions.results || []).map((item) => ({ id: item.id, version_id: item.version_id, created_at: item.created_at, ...JSON.parse(item.submission_json) })), shares: shares.results || [], snapshot });
   } catch (error) {
     return errorResponse(error, "The project could not be loaded.");
   }
