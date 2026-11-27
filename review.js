@@ -89,6 +89,43 @@ async function saveDecision(card, suggestionId, decision, comment) {
   }
 }
 
+function renderEditorSubmissionWorkspace() {
+  const root = $("#reviewContent");
+  root.innerHTML = `
+    <section class="review-editor-submit">
+      <div class="review-section-head"><div><p class="eyebrow">Editor collaboration</p><h2>Submit a proposed edit</h2></div></div>
+      <p class="review-message">Your suggestions are sent to the project owner for review. They do not change the manuscript.</p>
+      <label for="editorLocation">Location or chapter</label><input id="editorLocation" type="text" placeholder="Chapter 2, paragraph 4">
+      <label for="editorCategory">Edit category</label><select id="editorCategory"><option>Developmental</option><option>Structural</option><option>Line edit</option><option>Copyedit</option><option>Proofreading</option><option>Continuity</option><option>Other</option></select>
+      <label for="editorOriginal">Original wording</label><textarea id="editorOriginal" rows="5" placeholder="Paste the exact wording from the shared manuscript"></textarea>
+      <label for="editorProposed">Proposed wording</label><textarea id="editorProposed" rows="5" placeholder="Enter your suggested change"></textarea>
+      <label for="editorReason">Reason for the change</label><textarea id="editorReason" rows="3" placeholder="Explain why you recommend this change"></textarea>
+      <button id="sendEditorSubmission" type="button">Submit proposal</button>
+    </section>
+    <section class="review-editor-history"><div class="review-section-head"><div><p class="eyebrow">Your submissions</p><h2>Previously submitted proposals</h2></div></div><div id="editorSubmissionHistory"></div></section>`;
+  const history = $("#editorSubmissionHistory");
+  const submissions = reviewData.submissions || [];
+  history.innerHTML = submissions.length ? submissions.map((item) => `<article class="review-suggestion"><strong>${escapeHtml(item.category || "Editorial")}</strong><small>${escapeHtml(item.location || "Location not specified")} · ${new Date(item.createdAt).toLocaleString()}</small><p><b>Original:</b> ${escapeHtml(item.original)}</p><p><b>Proposed:</b> ${escapeHtml(item.proposed)}</p><p><b>Reason:</b> ${escapeHtml(item.reason)}</p></article>`).join("") : '<p class="review-message">No proposals submitted yet.</p>';
+  $("#sendEditorSubmission").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const submission = {
+      location: $("#editorLocation").value,
+      category: $("#editorCategory").value,
+      original: $("#editorOriginal").value,
+      proposed: $("#editorProposed").value,
+      reason: $("#editorReason").value
+    };
+    button.disabled = true;
+    try {
+      await requestReview("POST", { submission });
+      reviewData.submissions = [{ ...submission, createdAt: new Date().toISOString() }, ...(reviewData.submissions || [])];
+      renderEditorSubmissionWorkspace();
+      toast("Your proposal has been sent to the project owner.");
+    } catch (error) { toast(error.message); }
+    finally { const next = $("#sendEditorSubmission"); if (next) next.disabled = false; }
+  });
+}
+
 function renderChapters() {
   const chapters = reviewData.snapshot?.beta?.chapters || [];
   const decisions = new Map((reviewData.decisions || []).map((item) => [item.suggestion_id, item]));
@@ -149,8 +186,13 @@ async function init() {
     $("#reviewTitle").textContent = reviewData.project.title;
     $("#reviewMeta").textContent = `Version ${reviewData.version.number} · ${reviewData.version.label} · Access expires ${new Date(reviewData.access.expiresAt).toLocaleDateString()}`;
     $("#reviewContent").hidden = false;
-    renderSuggestions();
-    renderChapters();
+    if (reviewData.access.role === "editor") {
+      $("#reviewMeta").textContent = `Version ${reviewData.version.number} · Editor submission access · Expires ${new Date(reviewData.access.expiresAt).toLocaleDateString()}`;
+      renderEditorSubmissionWorkspace();
+    } else {
+      renderSuggestions();
+      renderChapters();
+    }
   } catch (error) {
     $("#reviewError").hidden = false;
     $("#reviewError").textContent = error.message;
