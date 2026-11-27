@@ -1,3 +1,9 @@
 name = "authors-revision-desk"
 compatibility_date = "2026-11-25"
 pages_build_output_dir = "./dist"
+
+# Cloudflare Pages Function bindings are configured in the Pages dashboard.
+# Required binding names:
+#   D1 database: DB -> authors-revision-desk
+#   R2 bucket:   MANUSCRIPTS -> authors-revision-desk-manuscripts
+# See BACKEND_SETUP.md before enabling cloud project controls in production.
