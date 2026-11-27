@@ -45,8 +45,9 @@ Do not put database credentials, owner keys, or share keys in source code or Git
 | PUT | `/api/projects/:id` | Saves a new immutable project version |
 | POST | `/api/projects/:id/shares` | Creates a time-limited author-review or editor link |
 | DELETE | `/api/projects/:id/shares?shareId=...` | Revokes a collaboration link |
+| DELETE | `/api/projects/:id` | Archives a project and revokes all active collaboration links |
 | GET | `/api/reviews/:shareId` | Loads the shared review snapshot |
-| POST | `/api/reviews/:shareId` | Stores an author's accept, reject, or comment decision |
+| POST | `/api/reviews/:shareId` | Stores an author's accept, reject, or comment decision, or an editor's proposed wording and reason depending on the link role |
 | POST | `/api/ai-edit` | Authenticated, structured AI editing suggestions |
 | POST | `/api/beta-read` | Authenticated chapter-level beta-reading report |
 | POST | `/api/beta-read/book` | Whole-book synthesis from saved chapter reports |
@@ -57,6 +58,6 @@ Manuscript snapshots are stored as JSON objects in R2. D1 stores project metadat
 
 ## Current boundary
 
-The browser now includes cloud-copy creation, manual version saves, recovery-key export/import, version restore, author-review link creation and revocation, an author review page, and an owner response inbox. AI chapter reports, whole-book synthesis, and editing suggestions are connected to authenticated endpoints and are saved as new cloud versions after generation. Each project is limited to 40 AI requests and 250,000 input characters per UTC day; this is not an account-wide spending cap.
+The browser now includes cloud-copy creation, manual version saves, recovery-key export/import, version restore, a local multi-project dashboard for recovery keys connected in that browser, project archiving, author-review links, editor collaboration links, an author review page, and an owner response inbox. Editor proposals can be imported into the owner's pending editing queue. The dashboard is not yet an account-wide cross-device project list; it depends on the recovery keys stored in the current browser. AI chapter reports, whole-book synthesis, and editing suggestions are connected to authenticated endpoints and are saved as new cloud versions after generation. Each project is limited to 40 AI requests and 250,000 input characters per UTC day; this is not an account-wide spending cap or a guaranteed dollar ceiling. Workers AI is metered, so monitor usage and billing in Cloudflare.
 
 The Cloudflare resources still need to be created and bound in the dashboard. Do not treat the backend as production-ready until the live binding checks, access-control tests, AI quota behavior, review-decision round-trip, and full manuscript restore have passed.
