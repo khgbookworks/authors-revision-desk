@@ -35,7 +35,7 @@ const toast = $("#toast");
 
 const defaultFeedback = () => Object.fromEntries(feedbackDefinitions.map(([key]) => [key, ""]));
 const defaultChapter = (title, draft = "") => ({ id: makeId(), title, draft, improved: draft, feedback: defaultFeedback(), customFocus: "", authorDecision: "", suggestionTypes: [], editingPasses: [], aiReport: null });
-const defaultFormatter = () => ({ title: "", author: "", subtitle: "", copyright: "", dedication: "", acknowledgements: "", sourceText: "", settings: { bookType: "auto", trimSize: "6x9", font: "newsreader", chapterStyle: "classic", includeFrontMatter: true, includeToc: true, includePageNumbers: true, includeRunningHeaders: false, margin: "standard", fontSize: "11.5", lineSpacing: "1.55", paragraphIndent: "0.22", gutter: "0.18" } });
+const defaultFormatter = () => ({ title: "", author: "", subtitle: "", copyright: "", dedication: "", acknowledgements: "", sourceText: "", sourceHtml: "", settings: { bookType: "auto", trimSize: "6x9", font: "newsreader", chapterStyle: "classic", includeFrontMatter: true, includeToc: true, includePageNumbers: true, includeRunningHeaders: false, margin: "standard", fontSize: "11.5", lineSpacing: "1.55", paragraphIndent: "0.22", gutter: "0.18" } });
 
 let state = loadState() || { title: "", chapters: [], selectedId: null, updatedAt: null };
 let formatter = loadFormatterState();
@@ -629,6 +629,82 @@ async function extractFileText(file) {
     return pages.join("\n\n");
   }
   throw new Error("Please use TXT, Markdown, HTML, DOCX, or PDF.");
+} 
+
+function sanitizeRichHtml(source) {
+  const parsed = new DOMParser().parseFromString(String(source || ""), "text/html");
+  const allowed = new Set(["p", "h1", "h2", "h3", "h4", "strong", "b", "em", "i", "u", "br", "blockquote", "ul", "ol", "li", "hr", "sup", "sub", "a"]);
+  const clean = (node, parent) => {
+    if (node.nodeType === Node.TEXT_NODE) { parent.appendChild(document.createTextNode(node.nodeValue || "")); return; }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = node.tagName.toLowerCase();
+    if (!allowed.has(tag)) { [...node.childNodes].forEach((child) => clean(child, parent)); return; }
+    const element = document.createElement(tag);
+    if (tag === "a") {
+      const href = node.getAttribute("href") || "";
+      if (/^(https?:|mailto:|#)/i.test(href)) element.setAttribute("href", href);
+    }
+    [...node.childNodes].forEach((child) => clean(child, element));
+    parent.appendChild(element);
+  };
+  const output = document.createElement("div");
+  [...parsed.body.childNodes].forEach((node) => clean(node, output));
+  return output.innerHTML;
+}
+
+async function extractFormatterContent(file) {
+  if (!file) return { text: "", html: "" };
+  const extension = file.name.split(".").pop().toLowerCase();
+  if (extension === "docx") {
+    if (!window.mammoth) throw new Error("DOCX reader is still loading. Try again in a moment.");
+    const arrayBuffer = await file.arrayBuffer();
+    const [plain, rich] = await Promise.all([
+      window.mammoth.extractRawText({ arrayBuffer }),
+      window.mammoth.convertToHtml({ arrayBuffer })
+    ]);
+    return { text: plain.value || "", html: sanitizeRichHtml(rich.value || "") };
+  }
+  if (["html", "htm"].includes(extension)) {
+    const raw = await file.text();
+    const parsed = new DOMParser().parseFromString(raw, "text/html");
+    return {
+      text: parsed.body?.innerText || parsed.body?.textContent || "",
+      html: sanitizeRichHtml(parsed.body?.innerHTML || "")
+    };
+  }
+  return { text: await extractFileText(file), html: "" };
+}
+
+function richSectionsFromHtml(sourceHtml, plainText) {
+  const parsed = new DOMParser().parseFromString(`<div id="richRoot">${sourceHtml}</div>`, "text/html");
+  const root = parsed.querySelector("#richRoot");
+  if (!root) return [];
+  const headings = [...root.children].filter((node) => node.tagName === "H1");
+  if (!headings.length) return [{ title: "Manuscript", draft: plainText, richHtml: sourceHtml }];
+  const sections = [];
+  let current = null;
+  const push = () => {
+    if (!current) return;
+    const richHtml = current.nodes.join("");
+    const text = current.nodes.map((markup) => {
+      const holder = new DOMParser().parseFromString(markup, "text/html");
+      return holder.body.textContent || "";
+    }).filter(Boolean).join("\n\n");
+    if (current.title || text.trim()) sections.push({ title: current.title || `Section ${sections.length + 1}`, draft: text.trim(), richHtml });
+  };
+  [...root.childNodes].forEach((node) => {
+    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "H1") {
+      push();
+      current = { title: node.textContent.trim() || `Chapter ${sections.length + 1}`, nodes: [] };
+    } else if (current) {
+      current.nodes.push(node.nodeType === Node.ELEMENT_NODE ? node.outerHTML : escapeHtml(node.textContent || ""));
+    } else if (node.textContent?.trim()) {
+      if (!current) current = { title: "Opening material", nodes: [] };
+      current.nodes.push(node.nodeType === Node.ELEMENT_NODE ? node.outerHTML : escapeHtml(node.textContent || ""));
+    }
+  });
+  push();
+  return sections.length ? sections : [{ title: "Manuscript", draft: plainText, richHtml: sourceHtml }];
 }
 
 async function readFileInto(file, target, titleTarget, statusMessage = "File loaded.") {
@@ -924,17 +1000,22 @@ function renderFormatter() {
   $("#formatDedication").value = formatter.dedication || "";
   $("#formatAcknowledgements").value = formatter.acknowledgements || "";
   Object.entries(formatter.settings).forEach(([key, value]) => { const field = $(`#${formatterFieldMap[key] || key}`); if (field) field.type === "checkbox" ? field.checked = Boolean(value) : field.value = value; });
-  $("#formatSourceStatus").textContent = formatter.sourceText ? `${wordCount(formatter.sourceText)} words loaded locally.` : "No finished manuscript loaded yet.";
+  $("#formatSourceStatus").textContent = formatter.sourceText ? `${wordCount(formatter.sourceText)} words loaded locally.${formatter.sourceHtml ? " Bold, italics, and rich paragraph structure preserved." : ""}` : "No finished manuscript loaded yet.";
   updateFormatterRecommendation();
   if (formatter.sourceText) renderFormattedPreview();
 }
 
 function formattedSections() {
+  if (formatter.sourceHtml) {
+    const richSections = richSectionsFromHtml(formatter.sourceHtml, formatter.sourceText);
+    if (richSections.length) return richSections;
+  }
   const chapters = splitManuscript(formatter.sourceText).map((chapter, index) => ({ ...chapter, title: chapter.title || `Section ${index + 1}` }));
   return chapters.length ? chapters : [{ title: "Manuscript", draft: formatter.sourceText }];
 }
 
-function textBlocksHtml(text, type) {
+function textBlocksHtml(text, type, richHtml = "") {
+  if (richHtml) return richHtml;
   const safe = text.trim();
   if (!safe) return "";
   if (type === "poetry") return safe.split("\n").map((line) => `<div class="poem-line">${escapeHtml(line) || "&nbsp;"}</div>`).join("");
@@ -955,7 +1036,7 @@ function formatBookMarkup(includeDocument = false) {
   const dedication = formatter.dedication.trim() ? `<section class="front-matter dedication-page"><p>${escapeHtml(formatter.dedication).replace(/\n/g, "<br>")}</p></section>` : "";
   const acknowledgements = formatter.acknowledgements.trim() ? `<section class="front-matter acknowledgements-page"><h2>Acknowledgements</h2><div>${textBlocksHtml(formatter.acknowledgements, type)}</div></section>` : "";
   const toc = settings.includeToc && sections.length > 1 ? `<section class="contents"><h2>Contents</h2><ol>${sections.map((chapter, index) => `<li><a href="#chapter-${index + 1}">${escapeHtml(chapter.title)}</a></li>`).join("")}</ol></section>` : "";
-  const body = sections.map((chapter, index) => `<section class="book-chapter ${chapterClass}${index === 0 ? " book-chapter-first" : ""}" id="chapter-${index + 1}"><h2>${settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2><div class="chapter-text">${textBlocksHtml(chapter.draft, type)}</div></section>`).join("");
+  const body = sections.map((chapter, index) => `<section class="book-chapter ${chapterClass}${index === 0 ? " book-chapter-first" : ""}" id="chapter-${index + 1}"><h2>${settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2><div class="chapter-text">${textBlocksHtml(chapter.draft, type, chapter.richHtml)}</div></section>`).join("");
   const inner = `<div class="format-book format-${type}" data-trim="${settings.trimSize}">${frontMatter}${copyright}${dedication}${toc}${acknowledgements}${body}</div>`;
   if (!includeDocument) return inner;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${formatBookCss()}</style></head><body>${inner}</body></html>`;
@@ -994,7 +1075,7 @@ async function exportEpub() {
   const title = formatTitleForExport();
   const author = formatter.author.trim() || "Author";
   const sections = formattedSections();
-  const body = sections.map((chapter, index) => `<section epub:type="chapter" id="chapter-${index + 1}"><h2>${formatter.settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2>${textBlocksHtml(chapter.draft, effectiveBookType())}</section>`).join("");
+  const body = sections.map((chapter, index) => `<section epub:type="chapter" id="chapter-${index + 1}"><h2>${formatter.settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2>${textBlocksHtml(chapter.draft, effectiveBookType(), chapter.richHtml)}</section>`).join("");
   const frontMatter = `${formatter.settings.includeFrontMatter ? `<section class="epub-title"><h1>${escapeHtml(title)}</h1>${formatter.subtitle ? `<p class="subtitle">${escapeHtml(formatter.subtitle)}</p>` : ""}${author ? `<p class="author">${escapeHtml(author)}</p>` : ""}</section>` : ""}${formatter.copyright ? `<section class="epub-front"><p>${escapeHtml(formatter.copyright).replace(/\n/g,"<br/>")}</p></section>` : ""}${formatter.dedication ? `<section class="epub-front dedication"><p>${escapeHtml(formatter.dedication).replace(/\n/g,"<br/>")}</p></section>` : ""}${formatter.acknowledgements ? `<section class="epub-front"><h2>Acknowledgements</h2>${textBlocksHtml(formatter.acknowledgements,effectiveBookType())}</section>` : ""}`;
   const xhtml = `<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title><link rel="stylesheet" type="text/css" href="styles.css"/></head><body>${frontMatter}${body}</body></html>`;
   const css = `body{font-family:${formatFont(formatter.settings.font)};font-size:${formatter.settings.fontSize}pt;line-height:${formatter.settings.lineSpacing};margin:5%}h1{text-align:center;font-weight:400;margin:20% 0 10%}.subtitle{text-align:center;font-style:italic}.author{text-align:center;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.12em}.epub-title,.epub-front{break-after:page;page-break-after:always;min-height:75vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}.dedication{font-style:italic}section{page-break-before:always;margin-top:10%}h2{font-weight:400}p{text-indent:${formatter.settings.paragraphIndent}em;margin:0 0 .8em}`;
@@ -1091,13 +1172,13 @@ function bindFormatterActions() {
   formatAuthor.oninput = () => { formatter.author = formatAuthor.value; updateFormatterPreview(); };
   [["formatSubtitle","subtitle"],["formatCopyright","copyright"],["formatDedication","dedication"],["formatAcknowledgements","acknowledgements"]].forEach(([id,key]) => { const field = $(`#${id}`); field.oninput = () => { formatter[key] = field.value; updateFormatterPreview(); }; });
   $("#bookType,#trimSize,#formatFont,#chapterStyle,#includeFrontMatter,#includeToc,#includePageNumbers,#includeRunningHeaders,#formatMargin,#formatGutter,#formatFontSize,#formatLineSpacing,#formatIndent").forEach((field) => field.onchange = () => { const key = Object.entries(formatterFieldMap).find(([, id]) => id === field.id)?.[0] || field.id; formatter.settings[key] = field.type === "checkbox" ? field.checked : field.value; updateFormatterPreview(); });
-  $("#formatFileInput").onchange = async (event) => { const text = await readFileInto(event.target.files[0], $("#formatSourceStatus"), null, ""); if (text) { formatter.sourceText = text; if (!formatter.title.trim()) formatter.title = event.target.files[0].name.replace(/\.[^.]+$/, ""); persistFormatter(); renderFormatter(); showToast("Finished manuscript loaded. Choose your format, then preview it."); } };
+  $("#formatFileInput").onchange = async (event) => { const file = event.target.files[0]; if (!file) return; try { const content = await extractFormatterContent(file); if (!content.text.trim()) throw new Error("No selectable text was found in this file."); formatter.sourceText = content.text; formatter.sourceHtml = content.html; if (!formatter.title.trim()) formatter.title = file.name.replace(/\.[^.]+$/, ""); persistFormatter(); renderFormatter(); showToast(content.html ? "Manuscript loaded with rich formatting preserved." : "Finished manuscript loaded. Choose your format, then preview it."); } catch (error) { showToast(error.message || "This file could not be read."); } };
   $("#formatDropZone").ondragover = (event) => { event.preventDefault(); $("#formatDropZone").classList.add("is-dragging"); };
   $("#formatDropZone").ondragleave = () => $("#formatDropZone").classList.remove("is-dragging");
-  $("#formatDropZone").ondrop = async (event) => { event.preventDefault(); $("#formatDropZone").classList.remove("is-dragging"); const file = event.dataTransfer.files[0]; const text = await extractFileText(file).catch((error) => { showToast(error.message); return ""; }); if (text) { formatter.sourceText = text; if (!formatter.title.trim()) formatter.title = file.name.replace(/\.[^.]+$/, ""); persistFormatter(); renderFormatter(); showToast("Finished manuscript loaded."); } };
+  $("#formatDropZone").ondrop = async (event) => { event.preventDefault(); $("#formatDropZone").classList.remove("is-dragging"); const file = event.dataTransfer.files[0]; try { const content = await extractFormatterContent(file); if (!content.text.trim()) throw new Error("No selectable text was found in this file."); formatter.sourceText = content.text; formatter.sourceHtml = content.html; if (!formatter.title.trim()) formatter.title = file.name.replace(/\.[^.]+$/, ""); persistFormatter(); renderFormatter(); showToast(content.html ? "Manuscript loaded with rich formatting preserved." : "Finished manuscript loaded."); } catch (error) { showToast(error.message || "This file could not be read."); } };
   $("#formatDropZone").onclick = () => $("#formatFileInput").click();
   $("#formatDropZone").onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); $("#formatFileInput").click(); } };
-  $("[data-format-paste]").onclick = async () => { try { const text = await navigator.clipboard.readText(); if (!text) { showToast("Your clipboard is empty."); return; } formatter.sourceText = text; persistFormatter(); renderFormatter(); showToast("Finished manuscript pasted. Choose your format, then preview it."); } catch (error) { showToast("Tap inside the book formatter after copying your text, or choose a file instead."); } };
+  $("[data-format-paste]").onclick = async () => { try { const text = await navigator.clipboard.readText(); if (!text) { showToast("Your clipboard is empty."); return; } formatter.sourceText = text; formatter.sourceHtml = ""; persistFormatter(); renderFormatter(); showToast("Finished manuscript pasted. Choose your format, then preview it."); } catch (error) { showToast("Tap inside the book formatter after copying your text, or choose a file instead."); } };
   $("[data-format-preview]").onclick = () => { if (!formatter.sourceText.trim()) { showToast("Load the finished manuscript before previewing it."); return; } persistFormatter(); renderFormattedPreview(); $("#formattedPreview").scrollIntoView({ behavior: "smooth", block: "start" }); };
   $("[data-download-epub]").onclick = exportEpub;
   $("[data-download-doc]").onclick = exportDoc;
