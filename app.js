@@ -206,7 +206,11 @@ async function refreshCloudProject(silent = false, restoreSnapshot = false) {
     }
     const root = $("#cloudReviewList");
     if (root) {
-      root.innerHTML = decisions.length ? decisions.map((item) => `<article class="cloud-review-item"><strong>${escapeHtml(item.suggestion_id)}</strong><span>${escapeHtml(item.decision)} · ${escapeHtml(item.share_label || "Review link")}</span><p>${escapeHtml(item.comment || "No comment attached.")}</p></article>`).join("") : '<p class="micro-note">No author responses have been submitted yet.</p>';
+      root.innerHTML = decisions.length ? decisions.map((item) => {
+        const suggestionIndex = editor.suggestions.findIndex((entry) => entry.id === item.suggestion_id);
+        const label = suggestionIndex >= 0 ? `Suggestion ${suggestionIndex + 1}` : item.suggestion_id.startsWith("chapter-note-") ? "Chapter comment" : item.suggestion_id;
+        return `<article class="cloud-review-item"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(item.decision)} · ${escapeHtml(item.share_label || "Review link")}</span><p>${escapeHtml(item.comment || "No comment attached.")}</p></article>`;
+      }).join("") : '<p class="micro-note">No author responses have been submitted yet.</p>';
     }
     if (!silent) showToast(`Cloud project refreshed. ${decisions.length} author response(s) found.`);
   } catch (error) {
