@@ -82,12 +82,14 @@ function renderCloudActions() {
   const create = $("[data-cloud-create]");
   const save = $("[data-cloud-save]");
   const share = $("[data-cloud-share]");
+  const editorShare = $("[data-cloud-editor-share]");
   if (!status || !create || !save || !share) return;
   const connected = Boolean(cloudProject);
   status.textContent = connected ? `Cloud project connected · ${cloudProject.title}` : "Cloud backup is not connected";
   create.hidden = connected;
   save.hidden = !connected;
   share.hidden = !connected;
+  if (editorShare) editorShare.hidden = !connected;
   const refresh = $("[data-cloud-refresh]");
   const revoke = $("[data-cloud-revoke]");
   const keyExport = $("[data-cloud-key-export]");
@@ -253,14 +255,14 @@ async function revokeLatestReviewLink() {
   } catch (error) { showToast(error.message); }
 }
 
-async function createAuthorReviewLink() {
-  if (!cloudProject) { showToast("Create a cloud project before sharing a review link."); return; }
+async function createAuthorReviewLink(role = "author_review") {
+  if (!cloudProject) { showToast("Create a cloud project before sharing a collaboration link."); return; }
   try {
     const saved = await saveCloudVersion();
     if (!saved) return;
     const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}/shares`, "POST", {
-      role: "author_review",
-      label: "Author review",
+      role,
+      label: role === "editor" ? "Editor collaboration" : "Author review",
       expiresInDays: 14
     });
     cloudProject.latestShareId = result.share.id;
@@ -270,9 +272,9 @@ async function createAuthorReviewLink() {
     link.hash = new URLSearchParams({ share: result.share.id, key: result.token }).toString();
     try {
       await navigator.clipboard.writeText(link.toString());
-      showToast("Private author review link copied. It expires in 14 days.");
+      showToast(`Private ${role === "editor" ? "editor collaboration" : "author review"} link copied. It expires in 14 days.`);
     } catch (error) {
-      prompt("Copy this private author review link. Anyone with it can view the shared manuscript and submit review decisions.", link.toString());
+      prompt("Copy this private collaboration link. Anyone with it can access the shared manuscript according to its role.", link.toString());
     }
   } catch (error) {
     showToast(error.message);
@@ -954,7 +956,8 @@ function bindGlobalActions() {
   $("[data-create-project]").onclick = () => createProject($("#projectTitle").value, $("#manuscriptInput").value);
   $("[data-cloud-create]").onclick = createCloudProject;
   $("[data-cloud-save]").onclick = saveCloudVersion;
-  $("[data-cloud-share]").onclick = createAuthorReviewLink;
+  $("[data-cloud-share]").onclick = () => createAuthorReviewLink("author_review");
+  $("[data-cloud-editor-share]").onclick = () => createAuthorReviewLink("editor");
   $("[data-cloud-refresh]").onclick = () => refreshCloudProject();
   $("[data-cloud-revoke]").onclick = revokeLatestReviewLink;
   $("[data-cloud-key-export]").onclick = exportCloudAccessKey;
