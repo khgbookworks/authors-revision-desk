@@ -50,6 +50,11 @@
           <div><p class="eyebrow">Beta reading workspace</p><h2 id="workspaceHeading">Start a new beta read</h2></div>
           <div class="workspace-actions"><span class="mode-note">Suggestions only</span><button class="button button-quiet" type="button" data-new-project>New project</button><label class="button button-primary file-button" for="fileInput">Choose a manuscript file<input id="fileInput" type="file" accept=".txt,.md,.markdown,.html,.htm,.docx,.pdf,text/plain,text/markdown,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label></div>
         <div class="cloud-workspace-bar" aria-label="Cloud project controls">
+          <div class="cloud-project-dashboard">
+            <label for="cloudProjectSelect">Saved cloud projects on this browser</label>
+            <select id="cloudProjectSelect" class="text-input" aria-label="Choose a saved cloud project"></select>
+            <button class="button button-quiet" type="button" data-cloud-archive hidden>Archive current project</button>
+          </div>
           <span id="cloudStatus" class="cloud-status">Checking cloud workspace…</span>
           <div class="cloud-workspace-actions">
             <button class="button button-quiet" type="button" data-cloud-create>Create cloud copy</button>
