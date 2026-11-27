@@ -51,6 +51,40 @@ export async function requireBindings(env) {
   }
 }
 
+export async function requireAiBindings(env) {
+  if (!env.DB) throw new Error("The D1 database is not configured.");
+  if (!env.AI) throw new Error("Workers AI is not connected to this Pages project.");
+}
+
+export async function reserveAiUsage(env, projectId, inputCharacters) {
+  const usageDate = new Date().toISOString().slice(0, 10);
+  const row = await env.DB.prepare(
+    "INSERT INTO ai_usage (project_id, usage_date, requests, input_characters) VALUES (?, ?, 1, ?) ON CONFLICT(project_id, usage_date) DO UPDATE SET requests = requests + 1, input_characters = input_characters + excluded.input_characters WHERE requests < 40 AND input_characters + excluded.input_characters <= 250000 RETURNING requests, input_characters"
+  ).bind(projectId, usageDate, inputCharacters).first();
+  if (!row) throw new Error("The project's daily AI allowance has been reached. Try again after the daily reset.");
+  return row;
+}
+
+export async function runStructuredAi(env, systemPrompt, userPrompt, schema, maxTokens = 3000) {
+  const result = await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt }
+    ],
+    max_tokens: maxTokens,
+    response_format: { type: "json_schema", json_schema: schema }
+  });
+  let output = result?.response ?? result?.result ?? result;
+  if (typeof output === "string") {
+    try { output = JSON.parse(output); }
+    catch { throw new Error("The AI service returned an unreadable structured response. Please retry."); }
+  }
+  if (!output || typeof output !== "object" || Array.isArray(output)) {
+    throw new Error("The AI service did not return the expected report format. Please retry.");
+  }
+  return output;
+}
+
 export async function loadProjectSnapshot(env, version) {
   if (!version?.object_key) return null;
   const object = await env.MANUSCRIPTS.get(version.object_key);
@@ -82,7 +116,8 @@ export async function authorizeShare(request, env, shareId) {
 
 export function errorResponse(error, fallback = "The request could not be completed.") {
   const message = error?.message || fallback;
-  const status = /not configured/i.test(message) ? 503
+  const status = /not configured|not connected/i.test(message) ? 503
+    : /daily AI allowance|quota/i.test(message) ? 429
     : /too large/i.test(message) ? 413
     : /valid JSON|is required|must be/i.test(message) ? 400
     : 500;
