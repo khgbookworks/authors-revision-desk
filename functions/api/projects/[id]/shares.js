@@ -15,8 +15,8 @@ export async function onRequestPost({ request, env, params }) {
     const createdAt = now.toISOString();
     const expiresAt = new Date(now.getTime() + expiresInDays * 86400000).toISOString();
     await env.DB.prepare(
-      "INSERT INTO project_shares (id, project_id, token_hash, role, label, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    ).bind(shareId, project.id, await hashSecret(token), role, label, createdAt, expiresAt).run();
+      "undefined"
+    ).bind(shareId, project.id, project.current_version_id, await hashSecret(token), role, label, createdAt, expiresAt).run();
     return json({
       ok: true,
       share: { id: shareId, role, label, createdAt, expiresAt },
