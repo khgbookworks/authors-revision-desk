@@ -528,8 +528,9 @@ async function startAiBetaRead() {
     chapter.aiReport = data.report;
     feedbackDefinitions.forEach(([key]) => { chapter.feedback[key] = data.report[key] || ""; });
     persist("AI-assisted report saved locally");
+    const cloudSaved = await saveCloudVersion();
     renderCurrentChapter();
-    showToast("Chapter report generated. Review it before sharing it as reader feedback.");
+    showToast(cloudSaved ? "Chapter report generated and saved to a new cloud version. Review it before sharing." : "Chapter report generated locally, but cloud saving failed. Save again when connected.");
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -561,8 +562,9 @@ async function startAiBookReport() {
     if (!response.ok) throw new Error(data.message || "The whole-book synthesis could not be generated.");
     state.bookReport = data.report;
     persist("Whole-book synthesis saved locally");
+    const cloudSaved = await saveCloudVersion();
     renderBookReport();
-    showToast("Whole-book synthesis generated from the available chapter reports.");
+    showToast(cloudSaved ? "Whole-book synthesis generated and saved to a new cloud version." : "Whole-book synthesis generated locally, but cloud saving failed.");
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -920,8 +922,9 @@ async function startAiEdit() {
     editor.suggestions = (data.suggestions || []).map((item, index) => ({ id: makeId(), index: Number.isInteger(item.index) ? item.index : index, original: item.original || editor.segments[index] || "", proposed: item.proposed || editor.segments[index] || "", reason: item.reason || "AI suggestion. Check it against your voice before approving.", confidence: item.confidence || "unrated", source: "ai", status: "pending" }));
     editor.generated = true;
     persistEditor("AI suggestions saved locally");
+    const cloudSaved = await saveCloudVersion();
     renderEditingWorkspace();
-    showToast(`${editor.suggestions.length} AI suggestions are ready for your decision.`);
+    showToast(cloudSaved ? `${editor.suggestions.length} AI suggestions are ready and saved to a cloud version.` : `${editor.suggestions.length} AI suggestions are ready locally, but cloud saving failed.`);
   } catch (error) {
     showToast(`${error.message} Local conservative suggestions are still available.`);
   } finally {
