@@ -49,6 +49,8 @@ jobs:
           print("D1 migration SQL verified with SQLite.")
           PY
           node --check functions/api/ai-edit.js
+          node --check functions/api/beta-read.js
+          node --check "functions/api/beta-read/book.js"
           node --check "functions/api/google-docs/[action].js"
           test -s migrations/0001_manuscript_workspace.sql
       - name: Build static application
