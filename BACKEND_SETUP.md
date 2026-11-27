@@ -1,6 +1,6 @@
 # Cloud backend setup
 
-The application now has Cloudflare Pages Function routes for persistent projects, immutable version snapshots, private collaboration links, and author review decisions. These routes require Cloudflare D1 and R2 bindings. Until both are connected, the browser-only workspace remains available and the health endpoint reports the backend as not ready.
+The application has Cloudflare Pages Function routes for persistent projects, immutable version snapshots, private collaboration links, author review decisions, and optional Workers AI processing. Project storage requires D1 and R2. AI tools additionally require the Workers AI binding. Until the required bindings are connected, the browser-only workspace remains available and the health endpoint reports which services are ready.
 
 ## Required Cloudflare resources
 
@@ -39,9 +39,9 @@ Do not put database credentials, owner keys, or share keys in source code or Git
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/health` | Reports whether D1 and R2 bindings are present |
+| GET | `/api/health` | Reports D1, R2, and Workers AI binding readiness |
 | POST | `/api/projects` | Creates a project and returns its owner key once |
-| GET | `/api/projects/:id` | Loads a project using its owner key |
+| GET | `/api/projects/:id` | Loads the current project version, version list, and author responses; add `?versionId=...` to retrieve an older version |
 | PUT | `/api/projects/:id` | Saves a new immutable project version |
 | POST | `/api/projects/:id/shares` | Creates a time-limited author-review or editor link |
 | DELETE | `/api/projects/:id/shares?shareId=...` | Revokes a collaboration link |
@@ -57,4 +57,6 @@ Manuscript snapshots are stored as JSON objects in R2. D1 stores project metadat
 
 ## Current boundary
 
-The API foundation is in place, but the cloud resources still need to be created and bound in the Cloudflare dashboard. The front-end cloud-sync controls and author-facing review page are the next integration stage. Do not treat the cloud backend as production-ready until the UI integration, live binding checks, access-control tests, and full manuscript round-trip have passed.
+The browser now includes cloud-copy creation, manual version saves, recovery-key export/import, version restore, author-review link creation and revocation, an author review page, and an owner response inbox. AI chapter reports, whole-book synthesis, and editing suggestions are connected to authenticated endpoints and are saved as new cloud versions after generation. Each project is limited to 40 AI requests and 250,000 input characters per UTC day; this is not an account-wide spending cap.
+
+The Cloudflare resources still need to be created and bound in the dashboard. Do not treat the backend as production-ready until the live binding checks, access-control tests, AI quota behavior, review-decision round-trip, and full manuscript restore have passed.
