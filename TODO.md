@@ -10,6 +10,8 @@ The following work has been implemented on the isolated `formatter-rebuild` bran
 - [x] Private author-review page with per-suggestion accept/reject/comment and chapter comments.
 - [x] Owner recovery-key export/import and cloud response inbox.
 - [x] Owner-side sync of accepted/rejected decisions to the matching local editing suggestions. Original manuscript text is not changed by those decisions.
+- [x] Editor collaboration links with a separate proposal portal; editor proposals are stored in D1 and can be imported into the owner's pending editing queue.
+- [x] Browser-local multi-project dashboard for projects whose recovery keys have been connected; archive action revokes active collaboration links.
 - [x] Cloud version selector and restore-to-local-workspace control; restoring does not overwrite the saved cloud history.
 - [x] Workers AI routes for editing suggestions, chapter beta reports, and whole-book synthesis from chapter reports.
 - [x] Per-project AI limits: 40 requests and 250,000 input characters per UTC day.
@@ -22,8 +24,8 @@ The following work has been implemented on the isolated `formatter-rebuild` bran
 - [ ] Test the live API and the full create → save → reconnect → review → author decision → owner sync flow.
 - [ ] Open exported DOCX in Microsoft Word and EPUB in an e-reader; verify PDF pagination in browser print preview.
 - [ ] Test real DOCX import samples with headings, bold, italics, lists, scene breaks, and dialogue.
-- [ ] Implement editor collaborator submissions and a project-level collaboration inbox.
-- [ ] Complete project dashboard, project discovery, and archive/delete controls.
+- [ ] Add server-side user accounts and an account-wide project list; current dashboard lists only cloud projects whose recovery keys are stored in this browser.
+- [ ] Add permanent project deletion and optional unarchive; current archive is a reversible data-retention action only through a future owner recovery workflow.
 - [ ] Add whole-book report export and improve review-round history.
 - [ ] Decide whether Google Docs integration is still required; current endpoint remains a clearly disabled stub.
 - [ ] Complete browser-based responsive, accessibility, and security testing before production deployment.
