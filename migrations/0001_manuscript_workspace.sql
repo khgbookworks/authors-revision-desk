@@ -27,6 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_project_versions_project
 CREATE TABLE IF NOT EXISTS project_shares (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  version_id TEXT NOT NULL REFERENCES project_versions(id) ON DELETE CASCADE,
   token_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('author_review', 'editor')),
   label TEXT NOT NULL DEFAULT '',
