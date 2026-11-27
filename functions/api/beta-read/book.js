@@ -3,7 +3,7 @@ import {
   runStructuredAi, errorResponse
 } from "../_shared.js";
 
-const MAX_REPORT_CHARS = 100000;
+const MAX_REPORT_CHARS = 50000;
 const bookSchema = {
   type: "object",
   properties: {
