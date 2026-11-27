@@ -17,10 +17,10 @@ for (const table of ["projects", "project_versions", "project_shares", "review_d
 assert.match(schema, /version_id TEXT NOT NULL REFERENCES project_versions/);
 assert.match(shares, /INSERT INTO project_shares \\(id, project_id, version_id, token_hash/);
 assert.doesNotMatch(shares, /"undefined"/);
-assert.match(projectApi, /await env\\.DB\\.batch\\(/);
-assert.match(createApi, /await env\\.DB\\.batch\\(/);
-assert.match(reviews, /const versionId = share\\.version_id/);
-assert.match(reviews, /share\\.role !== "author_review"/);
+assert.match(projectApi, /await env\.DB\.batch\(/);
+assert.match(createApi, /await env\.DB\.batch\(/);
+assert.match(reviews, /const versionId = share\.version_id/);
+assert.match(reviews, /share\.role !== "author_review"/);
 
 const id = newId("prj");
 assert.match(id, /^prj_[a-f0-9]{32}$/);
@@ -41,7 +41,7 @@ const mockEnv = {
 };
 const authorized = await authorizeShare(new Request("https://example.test", { headers: { authorization: `Bearer ${token}` } }), mockEnv, "shr_1");
 assert.equal(authorized.version_id, "ver_1");
-assert.match(querySeen, /s\\.version_id/);
+assert.match(querySeen, /s\.version_id/);
 
 for (const file of ["review.html", "review.css", "review.js"]) assert.ok(existsSync(file), `Missing ${file}`);
 console.log("Backend schema, token helpers, version-scoped review authorization, and portal assets verified.");
