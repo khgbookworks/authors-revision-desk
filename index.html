@@ -101,6 +101,12 @@
           <aside class="feedback-panel" aria-labelledby="feedbackHeading">
             <div class="feedback-head"><div><p class="eyebrow">Reader perspective</p><h3 id="feedbackHeading">Suggestions, not edits</h3></div><span class="saved-state" id="savedState">Saved locally</span></div>
             <p class="feedback-intro">Write what a real reader might say after sitting with the chapter. Specific and imperfect is better than polished and empty. Nothing in this panel rewrites the book.</p>
+            <div class="ai-beta-actions">
+              <button class="button button-primary" type="button" data-start-ai-beta>Generate AI chapter report</button>
+              <button class="button button-quiet" type="button" data-start-ai-book-report>Generate whole-book synthesis</button>
+            </div>
+            <div id="aiBetaEvidence"></div>
+            <div id="aiBookReport"></div>
             <div class="suggestion-note"><strong>Beta reading boundary</strong><span>This is not an editing pass. Use the notes to decide what you want to explore.</span></div>
             <div class="feedback-fields" id="feedbackFields"></div>
             <label class="field-label" for="generalFeedback">General reader letter</label><textarea class="feedback-area" id="generalFeedback" placeholder="Write in your own voice. What stayed with you after reading this chapter?"></textarea>
