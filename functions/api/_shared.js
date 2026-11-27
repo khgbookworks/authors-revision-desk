@@ -117,7 +117,7 @@ export async function authorizeShare(request, env, shareId) {
 export function errorResponse(error, fallback = "The request could not be completed.") {
   const message = error?.message || fallback;
   const status = /not configured|not connected/i.test(message) ? 503
-    : /daily AI allowance|quota/i.test(message) ? 429
+    : /daily AI allowance|quota|rate limit|neuron|capacity/i.test(message) ? 429
     : /too large/i.test(message) ? 413
     : /valid JSON|is required|must be/i.test(message) ? 400
     : 500;
