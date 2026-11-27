@@ -143,6 +143,7 @@ function exportCloudAccessKey() {
     projectId: cloudProject.id,
     projectTitle: cloudProject.title,
     ownerToken: cloudProject.ownerToken,
+    latestShareId: cloudProject.latestShareId || null,
     warning: "Treat this file like a password. Anyone with it can access this cloud project."
   }, null, 2), "application/json");
 }
@@ -156,7 +157,7 @@ async function importCloudAccessKey(file) {
     if (!/^prj_[a-f0-9]{32}$/i.test(id) || !/^[a-f0-9]{64}$/i.test(ownerToken)) {
       throw new Error("This is not a valid Author's Revision Desk access key file.");
     }
-    cloudProject = { id, title: String(data.projectTitle || "Cloud manuscript"), ownerToken };
+    cloudProject = { id, title: String(data.projectTitle || "Cloud manuscript"), ownerToken, ...(data.latestShareId ? { latestShareId: String(data.latestShareId) } : {}) };
     localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
     renderCloudActions();
     await refreshCloudProject(true, true);
