@@ -667,9 +667,60 @@ async function exportEpub() {
   const manifest = `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:uuid:${makeId()}</dc:identifier><dc:title>${escapeHtml(title)}</dc:title><dc:language>en</dc:language><dc:creator>${escapeHtml(author)}</dc:creator></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="content" href="content.xhtml" media-type="application/xhtml+xml"/><item id="styles" href="styles.css" media-type="text/css"/></manifest><spine><itemref idref="content"/></spine></package>`;
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
   zip.file("META-INF/container.xml", `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
-  zip.file("OEBPS/nav.xhtml", nav); zip.file("OEBPS/content.xhtml", xhtml); zip.file("OEBPS/styles.css", css); zip.file("OEBPS/content.opf", manifest);
+  zip.file("OEBPS/nav.xhtml", nav); zip.file("OEBPS/content.xhtml", xhtml.replace(/<br>/g, "<br/>")); zip.file("OEBPS/styles.css", css); zip.file("OEBPS/content.opf", manifest);
   const blob = await zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
   downloadFile(`${slug(title)}.epub`, blob); showToast("EPUB download started.");
+}
+
+function xmlEscape(value = "") { return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[char])); }
+
+async function exportDocx() {
+  if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; }
+  if (!window.JSZip) { showToast("The Word export helper is still loading. Try again in a moment."); return; }
+  const [pageWidth, pageHeight] = trimDimensions(formatter.settings.trimSize);
+  const twips = (inches) => Math.round(inches * 1440);
+  const marginTwips = formatter.settings.margin === "narrow" ? 792 : formatter.settings.margin === "wide" ? 1296 : 1008;
+  const fontName = ({ newsreader: "Georgia", georgia: "Georgia", palatino: "Palatino Linotype", sans: "Arial" })[formatter.settings.font] || "Georgia";
+  const halfPoints = Math.round(Number(formatter.settings.fontSize || 11.5) * 2);
+  const line = Math.round(Number(formatter.settings.lineSpacing || 1.55) * 240);
+  const indent = Math.round(Number(formatter.settings.paragraphIndent || 0) * 1440);
+  const para = (text, style = "Normal", pageBreak = false) => {
+    const runs = String(text).split("\n").map((part, index) => `<w:r><w:t xml:space="preserve">${xmlEscape(part)}</w:t>${index < String(text).split("\n").length - 1 ? "<w:br/>" : ""}</w:r>`).join("");
+    return `<w:p><w:pPr><w:pStyle w:val="${style}"/>${pageBreak ? "<w:pageBreakBefore/>" : ""}</w:pPr>${runs}</w:p>`;
+  };
+  const blocks = [];
+  if (formatter.settings.includeFrontMatter) {
+    blocks.push(para(formatTitleForExport(), "Title"));
+    if (formatter.subtitle) blocks.push(para(formatter.subtitle, "Subtitle"));
+    if (formatter.author) blocks.push(para(formatter.author, "Author"));
+    blocks.push(para("", "Normal", true));
+  }
+  if (formatter.copyright) blocks.push(para(formatter.copyright, "SmallText", true));
+  if (formatter.dedication) blocks.push(para(formatter.dedication, "Dedication", true));
+  const sections = formattedSections();
+  if (formatter.settings.includeToc && sections.length > 1) {
+    blocks.push(para("Contents", "Heading1", true));
+    sections.forEach((chapter) => blocks.push(para(chapter.title, "Normal")));
+  }
+  if (formatter.acknowledgements) {
+    blocks.push(para("Acknowledgements", "Heading1", true));
+    formatter.acknowledgements.split(/\n\s*\n/).filter(Boolean).forEach((p) => blocks.push(para(p.trim())));
+  }
+  sections.forEach((chapter, index) => {
+    blocks.push(para(chapter.title, "Heading1", index > 0 || blocks.length > 0));
+    chapter.draft.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).forEach((p) => blocks.push(para(p)));
+  });
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${blocks.join("")}<w:sectPr><w:pgSz w:w="${twips(pageWidth)}" w:h="${twips(pageHeight)}"/><w:pgMar w:top="${marginTwips}" w:right="1037" w:bottom="${marginTwips}" w:left="1037" w:header="450" w:footer="450" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${fontName}" w:hAnsi="${fontName}"/><w:sz w:val="${halfPoints}"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="${line}" w:lineRule="auto"/><w:ind w:firstLine="${indent}"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:rPr><w:b/><w:sz w:val="40"/></w:rPr><w:pPr><w:jc w:val="center"/><w:spacing w:after="360"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:rPr><w:i/><w:sz w:val="26"/></w:rPr><w:pPr><w:jc w:val="center"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Author"><w:name w:val="Author"/><w:pPr><w:jc w:val="center"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="420" w:after="300"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:sz w:val="30"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="SmallText"><w:name w:val="Small Text"/><w:rPr><w:sz w:val="18"/></w:rPr><w:pPr><w:ind w:firstLine="0"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Dedication"><w:name w:val="Dedication"/><w:rPr><w:i/></w:rPr><w:pPr><w:jc w:val="center"/></w:pPr></w:style></w:styles>`;
+  const zip = new window.JSZip();
+  zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`);
+  zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+  zip.file("word/_rels/document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  zip.file("word/document.xml", documentXml);
+  zip.file("word/styles.xml", stylesXml);
+  const blob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  downloadFile(`${slug(formatTitleForExport())}.docx`, blob);
+  showToast("Word document download started. Review pagination in Word before print production.");
 }
 
 function exportDoc() { if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; } downloadFile(`${slug(formatTitleForExport())}.doc`, formatBookMarkup(true), "application/msword"); showToast("DOC download started."); }
@@ -717,6 +768,7 @@ function bindFormatterActions() {
   $("[data-format-preview]").onclick = () => { if (!formatter.sourceText.trim()) { showToast("Load the finished manuscript before previewing it."); return; } persistFormatter(); renderFormattedPreview(); $("#formattedPreview").scrollIntoView({ behavior: "smooth", block: "start" }); };
   $("[data-download-epub]").onclick = exportEpub;
   $("[data-download-doc]").onclick = exportDoc;
+  $("[data-download-docx]").onclick = exportDocx;
   $("[data-download-pdf]").onclick = exportPdf;
   $("[data-download-html]").onclick = exportHtml;
   $("[data-download-format-backup]").onclick = () => { downloadFile(`${slug(formatTitleForExport())}-format-backup.json`, JSON.stringify(formatter, null, 2), "application/json"); showToast("Format backup download started."); };
