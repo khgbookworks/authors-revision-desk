@@ -39,8 +39,9 @@ export async function onRequestPost({ request, env }) {
     const source = String(payload.text || "");
     if (!source.trim()) return json({ ok: false, message: "Add manuscript text before requesting suggestions." }, 400);
     if (source.length > MAX_TEXT_CHARS) return json({ ok: false, message: "This editing request is too large. Work on a shorter section at a time." }, 413);
-    const segments = source.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean).slice(0, 40);
+    const segments = source.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean);
     if (!segments.length) return json({ ok: false, message: "No editable text sections were found." }, 400);
+    if (segments.length > 40) return json({ ok: false, message: "This request contains too many separate sections. Work on a shorter passage so no text is silently skipped." }, 413);
 
     const quota = await reserveAiUsage(env, project.id, source.length);
     const editType = String(payload.editType || "copyedit").slice(0, 40);
