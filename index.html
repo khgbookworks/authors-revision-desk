@@ -63,6 +63,11 @@
             <label class="button button-quiet cloud-key-import">Reconnect from key file<input id="cloudKeyFile" type="file" accept="application/json,.json"></label>
           </div>
           <div id="cloudReviewList" class="cloud-review-list" aria-live="polite"></div>
+          <div class="cloud-version-tools">
+            <label for="cloudVersionSelect">Saved versions</label>
+            <select id="cloudVersionSelect" class="text-input"></select>
+            <button class="button button-quiet" type="button" data-cloud-restore hidden>Load selected version</button>
+          </div>
           <p class="micro-note">Cloud backup is optional. Manuscripts are sent to Cloudflare only when you create or save a cloud project. Keep the downloaded recovery key private, like a password.</p>
         </div>
         </div>
