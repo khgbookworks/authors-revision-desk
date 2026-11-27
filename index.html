@@ -56,7 +56,14 @@
             <button class="button button-quiet" type="button" data-cloud-save hidden>Save cloud version</button>
             <button class="button button-primary" type="button" data-cloud-share hidden>Create author review link</button>
           </div>
-          <p class="micro-note">Cloud backup is optional. Manuscripts are sent to Cloudflare only when you create or save a cloud project. Private keys stay in this browser.</p>
+          <div class="cloud-workspace-actions cloud-secondary-actions">
+            <button class="button button-quiet" type="button" data-cloud-refresh hidden>Refresh author responses</button>
+            <button class="button button-quiet" type="button" data-cloud-revoke hidden>Revoke latest review link</button>
+            <button class="button button-quiet" type="button" data-cloud-key-export hidden>Download recovery key</button>
+            <label class="button button-quiet cloud-key-import">Reconnect from key file<input id="cloudKeyFile" type="file" accept="application/json,.json"></label>
+          </div>
+          <div id="cloudReviewList" class="cloud-review-list" aria-live="polite"></div>
+          <p class="micro-note">Cloud backup is optional. Manuscripts are sent to Cloudflare only when you create or save a cloud project. Keep the downloaded recovery key private, like a password.</p>
         </div>
         </div>
 
