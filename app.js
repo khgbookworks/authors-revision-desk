@@ -94,6 +94,8 @@ function renderCloudActions() {
   if (refresh) refresh.hidden = !connected;
   if (revoke) revoke.hidden = !connected || !cloudProject.latestShareId;
   if (keyExport) keyExport.hidden = !connected;
+  const restore = $("[data-cloud-restore]");
+  if (restore) restore.hidden = !connected;
 }
 
 async function ensureCloudBackend() {
@@ -167,6 +169,18 @@ async function importCloudAccessKey(file) {
   }
 }
 
+async function loadSelectedCloudVersion() {
+  if (!cloudProject) return;
+  const versionId = $("#cloudVersionSelect")?.value;
+  if (!versionId) { showToast("No saved version is available to load."); return; }
+  if (!confirm("Load this saved version into the local workspace? Any unsaved local changes will be replaced. The cloud version itself will remain unchanged.")) return;
+  try {
+    const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}?versionId=${encodeURIComponent(versionId)}`);
+    restoreCloudSnapshot(result.snapshot);
+    showToast(`Version ${result.currentVersion.version_number} loaded locally. Save a new cloud version if you want to make it current.`);
+  } catch (error) { showToast(error.message); }
+}
+
 function restoreCloudSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== "object") throw new Error("The cloud project has no readable workspace snapshot.");
   if (snapshot.beta && Array.isArray(snapshot.beta.chapters)) {
@@ -194,6 +208,11 @@ async function refreshCloudProject(silent = false, restoreSnapshot = false) {
     cloudProject.title = result.project?.title || cloudProject.title;
     localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
     if (restoreSnapshot) restoreCloudSnapshot(result.snapshot);
+    const versionSelect = $("#cloudVersionSelect");
+    if (versionSelect) {
+      versionSelect.innerHTML = (result.versions || []).map((version) => `<option value="${escapeHtml(version.id)}">v${version.version_number} · ${escapeHtml(version.label)} · ${escapeHtml(new Date(version.created_at).toLocaleDateString())}</option>`).join("");
+      versionSelect.value = result.currentVersion?.id || "";
+    }
     const decisions = result.reviewDecisions || [];
     if (result.currentVersion?.id && editor.suggestions?.length) {
       let changed = false;
@@ -936,6 +955,7 @@ function bindGlobalActions() {
   $("[data-cloud-refresh]").onclick = () => refreshCloudProject();
   $("[data-cloud-revoke]").onclick = revokeLatestReviewLink;
   $("[data-cloud-key-export]").onclick = exportCloudAccessKey;
+  $("[data-cloud-restore]").onclick = loadSelectedCloudVersion;
   $("#cloudKeyFile").onchange = (event) => importCloudAccessKey(event.target.files[0]);
   $("#fileInput").onchange = (event) => readFileInto(event.target.files[0], $("#manuscriptInput"), $("#projectTitle"), "File loaded. Read it over, then open the beta reading desk.");
   $("#dropZone").ondragover = (event) => { event.preventDefault(); $("#dropZone").classList.add("is-dragging"); };
