@@ -26,6 +26,7 @@ const storageKey = "authors-revision-desk-project";
 const formatterStorageKey = "authors-revision-desk-formatter";
 const editorStorageKey = "authors-revision-desk-editor";
 const cloudStorageKey = "authors-revision-desk-cloud-project";
+const cloudRegistryKey = "authors-revision-desk-cloud-projects";
 const makeId = () => `chapter-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -50,6 +51,59 @@ function loadCloudProject() {
   } catch (error) {
     return null;
   }
+}
+
+function loadCloudRegistry() {
+  try {
+    const items = JSON.parse(localStorage.getItem(cloudRegistryKey) || "[]");
+    return Array.isArray(items) ? items.filter((item) => item?.id && item?.ownerToken) : [];
+  } catch { return []; }
+}
+function registerCloudProject(project) {
+  const items = loadCloudRegistry().filter((item) => item.id !== project.id);
+  items.unshift({ ...project, lastOpenedAt: new Date().toISOString() });
+  localStorage.setItem(cloudRegistryKey, JSON.stringify(items.slice(0, 30)));
+  cloudProject = project;
+  localStorage.setItem(cloudStorageKey, JSON.stringify(project));
+  renderCloudDashboard();
+}
+function renderCloudDashboard() {
+  const select = $("#cloudProjectSelect");
+  const archive = $("[data-cloud-archive]");
+  const items = loadCloudRegistry();
+  if (select) {
+    select.innerHTML = items.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title || "Untitled project")}</option>`).join("");
+    select.disabled = !items.length;
+    select.value = cloudProject?.id || "";
+  }
+  if (archive) archive.hidden = !cloudProject;
+}
+async function switchCloudProject(projectId) {
+  const project = loadCloudRegistry().find((item) => item.id === projectId);
+  if (!project) return;
+  cloudProject = project;
+  localStorage.setItem(cloudStorageKey, JSON.stringify(project));
+  renderCloudActions();
+  try {
+    await refreshCloudProject(true, true);
+    renderCloudDashboard();
+    showToast(`Opened cloud project: ${project.title}`);
+  } catch (error) { showToast(error.message); }
+}
+async function archiveCurrentCloudProject() {
+  if (!cloudProject || !confirm("Archive this cloud project? Its collaboration links will be revoked. The saved versions remain in storage but the project will no longer be accessible through this workspace.")) return;
+  try {
+    await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}`, "DELETE");
+    const items = loadCloudRegistry().filter((item) => item.id !== cloudProject.id);
+    localStorage.setItem(cloudRegistryKey, JSON.stringify(items));
+    cloudProject = items[0] || null;
+    if (cloudProject) localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
+    else localStorage.removeItem(cloudStorageKey);
+    renderCloudActions();
+    renderCloudDashboard();
+    if (cloudProject) await refreshCloudProject(true, true);
+    showToast("Project archived. All its active collaboration links were revoked.");
+  } catch (error) { showToast(error.message); }
 }
 
 function cloudSnapshot() {
@@ -115,8 +169,7 @@ async function createCloudProject() {
   try {
     await ensureCloudBackend();
     const result = await cloudRequest("/api/projects", "POST", { title, snapshot: cloudSnapshot() }, "");
-    cloudProject = { id: result.project.id, title: result.project.title, ownerToken: result.ownerToken };
-    localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
+    registerCloudProject({ id: result.project.id, title: result.project.title, ownerToken: result.ownerToken });
     renderCloudActions();
     exportCloudAccessKey();
     showToast("Cloud project created. A private recovery key file has been downloaded.");
@@ -161,8 +214,7 @@ async function importCloudAccessKey(file) {
     if (!/^prj_[a-f0-9]{32}$/i.test(id) || !/^[a-f0-9]{64}$/i.test(ownerToken)) {
       throw new Error("This is not a valid Author's Revision Desk access key file.");
     }
-    cloudProject = { id, title: String(data.projectTitle || "Cloud manuscript"), ownerToken, ...(data.latestShareId ? { latestShareId: String(data.latestShareId) } : {}) };
-    localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
+    registerCloudProject({ id, title: String(data.projectTitle || "Cloud manuscript"), ownerToken, ...(data.latestShareId ? { latestShareId: String(data.latestShareId) } : {}) });
     renderCloudActions();
     await refreshCloudProject(true, true);
     showToast("Cloud project reconnected and its saved workspace loaded.");
@@ -979,6 +1031,8 @@ function bindGlobalActions() {
   $("[data-cloud-revoke]").onclick = revokeLatestReviewLink;
   $("[data-cloud-key-export]").onclick = exportCloudAccessKey;
   $("[data-cloud-restore]").onclick = loadSelectedCloudVersion;
+  $("[data-cloud-archive]").onclick = archiveCurrentCloudProject;
+  $("#cloudProjectSelect").onchange = (event) => switchCloudProject(event.target.value);
   $("#cloudKeyFile").onchange = (event) => importCloudAccessKey(event.target.files[0]);
   $("#fileInput").onchange = (event) => readFileInto(event.target.files[0], $("#manuscriptInput"), $("#projectTitle"), "File loaded. Read it over, then open the beta reading desk.");
   $("#dropZone").ondragover = (event) => { event.preventDefault(); $("#dropZone").classList.add("is-dragging"); };
