@@ -35,10 +35,11 @@ Formatting changes presentation only. It does not paraphrase, proofread, shorten
 The formatter can export:
 
 1. EPUB
-2. DOC compatible Word HTML
-3. PDF through the direct browser PDF helper, with a print and Save as PDF fallback
-4. HTML
-5. Formatting preferences and source text as a JSON backup
+2. DOCX with supported rich text
+3. DOC compatible Word HTML
+4. PDF through the browser print and Save as PDF flow
+5. HTML
+6. Formatting preferences and source text as a JSON backup
 
 ## Import and privacy
 
@@ -62,18 +63,21 @@ npm run build
 
 The published output is in `dist/`.
 
-## Cloudflare Pages migration
+## Cloudflare Pages development
 
-The `cloudflare-migration` branch is being prepared for Cloudflare Pages. The existing GitHub Pages deployment and `main` branch are being kept unchanged while the migration is tested.
+The active development branch is `formatter-rebuild`. The production Pages branch, existing GitHub Pages deployment, and `main` branch are being kept unchanged while this build is tested.
 
 - Build command: `npm run build`
 - Build output directory: `dist`
 - Cloudflare Pages Functions live in the root `functions/` directory.
-- `GET /api/health` reports deployment status and optional service availability.
-- `POST /api/ai-edit` and the Google Docs endpoints return an explicit unavailable response until their integrations are implemented.
-- The browser checks the health response before sending manuscript content to either optional service.
+- `GET /api/health` reports D1, R2, and optional Workers AI binding readiness.
+- `POST /api/ai-edit` provides authenticated editing suggestions.
+- `POST /api/beta-read` provides an authenticated chapter-level reader report.
+- `POST /api/beta-read/book` synthesizes the available chapter reports into a whole-book assessment.
+- Google Docs routes remain explicit unavailable stubs until an authorized integration is configured.
+- The browser checks service readiness and requires a cloud project owner key before sending manuscript text to Workers AI.
 
-Do not disable the existing GitHub Pages workflow or merge the migration branch until the Cloudflare Pages build, API health check, manuscript import, editing, and exports have been tested.
+Do not disable the existing GitHub Pages workflow or merge this development branch until the Cloudflare Pages build, live API, manuscript restore, author review, AI usage limits, and exports have been tested.
 
 ## GitHub Pages
 
@@ -91,11 +95,11 @@ The app uses relative asset paths so it works from the repository subpath. The E
 
 The editing workspace now includes a native `.docx` export with OOXML `w:ins` and `w:del` revision elements, revision author/date metadata, and Word comments containing the reason for each proposed change. Rejected suggestions remain unchanged; pending and approved suggestions are represented in the review package so the author can decide in Word. The existing HTML review remains a readable companion export.
 
-Authors can optionally define the voice to protect, editing tone, intended audience, protected phrases or spellings, and custom instructions. AI output is intended to remain a suggestion and stay pending until the author approves it. The Cloudflare migration branch currently reports built-in AI as unavailable; the interface checks the service status before sending manuscript text. The Workers AI integration will be added and tested in a later migration phase.
+Authors can optionally define the voice to protect, editing tone, intended audience, protected phrases or spellings, and custom instructions. AI output is intended to remain a suggestion and stay pending until the author approves it. The development branch includes authenticated Workers AI endpoints for chapter beta-reading, whole-book synthesis from chapter reports, and structured editing suggestions. AI runs only when the author starts an action, requires a cloud project and the Pages Workers AI binding, and is subject to per-project daily limits. Reports are labeled AI-assisted and should be reviewed by a human before sharing. The live Cloudflare binding and model behavior still need end-to-end testing.
 
 Google Docs controls are not connected in the Cloudflare migration branch yet. The interface checks the service status before sending manuscript text, and the API returns an explicit unavailable response until an authorized integration is implemented. Native DOCX, HTML, and JSON exports remain available.
 
 
 ## Persistent Cloudflare backend
 
-The backend schema and Pages Function routes are in this branch. Follow [BACKEND_SETUP.md](BACKEND_SETUP.md) to create the D1 database, R2 bucket, apply the migration, and connect the `DB` and `MANUSCRIPTS` bindings. The app now includes manual cloud-copy creation, immutable cloud version saves, private author-review link creation, and a review page for accepting, rejecting, or commenting on proposed edits and chapters. The API also includes authenticated Workers AI endpoints for chapter-level beta reports, whole-book synthesis from those reports, and editing suggestions. AI is optional and requires the Pages Workers AI binding. It is not called automatically: the author starts each report or editing pass. Per-project daily limits apply, and generated feedback is labeled AI-assisted. The API is not production-ready until live Cloudflare bindings, review decisions, owner-side decision retrieval, revocation, AI quota behavior, and full manuscript round-trip have been tested end to end.
+The backend schema and Pages Function routes are in this branch. Follow [BACKEND_SETUP.md](BACKEND_SETUP.md) to create the D1 database, R2 bucket, apply the migration, and connect the `DB`, `MANUSCRIPTS`, and optional `AI` bindings. The app now includes manual cloud-copy creation, immutable cloud version saves, private author-review link creation, and a review page for accepting, rejecting, or commenting on proposed edits and chapters. The API also includes authenticated Workers AI endpoints for chapter-level beta reports, whole-book synthesis from those reports, and editing suggestions. AI is optional and requires the Pages Workers AI binding. It is not called automatically: the author starts each report or editing pass. Per-project daily limits apply, and generated feedback is labeled AI-assisted. The API is not production-ready until live Cloudflare bindings, review decisions, owner-side decision retrieval, revocation, AI quota behavior, and full manuscript round-trip have been tested end to end.
