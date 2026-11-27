@@ -171,6 +171,16 @@ async function refreshCloudProject(silent = false) {
   try {
     const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}`);
     const decisions = result.reviewDecisions || [];
+    if (result.currentVersion?.id && editor.suggestions?.length) {
+      let changed = false;
+      decisions.filter((item) => item.version_id === result.currentVersion.id).forEach((item) => {
+        const suggestion = editor.suggestions.find((entry) => entry.id === item.suggestion_id);
+        if (!suggestion) return;
+        const nextStatus = item.decision === "accepted" ? "approved" : item.decision === "rejected" ? "rejected" : suggestion.status;
+        if (suggestion.status !== nextStatus) { suggestion.status = nextStatus; changed = true; }
+      });
+      if (changed) { persistEditor("Author decisions synced"); renderEditingWorkspace(); }
+    }
     const root = $("#cloudReviewList");
     if (root) {
       root.innerHTML = decisions.length ? decisions.map((item) => `<article class="cloud-review-item"><strong>${escapeHtml(item.suggestion_id)}</strong><span>${escapeHtml(item.decision)} · ${escapeHtml(item.share_label || "Review link")}</span><p>${escapeHtml(item.comment || "No comment attached.")}</p></article>`).join("") : '<p class="micro-note">No author responses have been submitted yet.</p>';
