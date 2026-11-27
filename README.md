@@ -22,7 +22,7 @@ Editing exports include the approved manuscript as TXT, clean HTML, and Word-com
 
 ### Book Formatter
 
-The Book Formatter is intended for a finished manuscript that has already been beta read and edited. It asks for presentation choices such as:
+The Book Formatter is intended for a finished manuscript that has already been beta read and edited. DOCX and HTML imports preserve supported rich text such as bold, italics, headings, and paragraph structure in the formatter preview and exports. The formatter also runs content-level checks for empty sections, duplicate headings, unusually long paragraphs, and missing metadata; final pagination still needs a manual print-preview check. It asks for presentation choices such as:
 
 * book type, with a professional recommendation when the author chooses automatic selection
 * trim or page size
