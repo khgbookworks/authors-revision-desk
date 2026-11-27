@@ -1198,8 +1198,8 @@ function richHtmlToDocxBlocks(sourceHtml) {
   const parsed = new DOMParser().parseFromString(`<div id="docxRichRoot">${sourceHtml}</div>`, "text/html");
   const root = parsed.querySelector("#docxRichRoot");
   if (!root) return [];
-  const paragraph = (node, style = "Normal") => {
-    const runs = richInlineRuns(node);
+  const paragraph = (node, style = "Normal", prefix = "") => {
+    const runs = `${prefix ? `<w:r><w:t xml:space="preserve">${xmlEscape(prefix)}</w:t></w:r>` : ""}${richInlineRuns(node)}`;
     if (!runs) return "";
     return `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>${runs}</w:p>`;
   };
@@ -1219,7 +1219,12 @@ function richHtmlToDocxBlocks(sourceHtml) {
     }
     if (["h2", "h3", "h4"].includes(tag)) { output.push(paragraph(node, "Heading2")); return; }
     if (tag === "blockquote") { output.push(paragraph(node, "Quote")); return; }
-    if (tag === "li") { output.push(paragraph(node, "ListParagraph")); return; }
+    if (tag === "ul" || tag === "ol") {
+      const items = [...node.children].filter((child) => child.tagName.toLowerCase() === "li");
+      items.forEach((item, index) => output.push(paragraph(item, "ListParagraph", tag === "ol" ? `${index + 1}. ` : "• ")));
+      return;
+    }
+    if (tag === "li") { output.push(paragraph(node, "ListParagraph", "• ")); return; }
     [...node.childNodes].forEach(visit);
   };
   [...root.childNodes].forEach(visit);
