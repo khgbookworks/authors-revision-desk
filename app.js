@@ -159,17 +159,40 @@ async function importCloudAccessKey(file) {
     cloudProject = { id, title: String(data.projectTitle || "Cloud manuscript"), ownerToken };
     localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
     renderCloudActions();
-    await refreshCloudProject();
-    showToast("Cloud project reconnected in this browser.");
+    await refreshCloudProject(true, true);
+    showToast("Cloud project reconnected and its saved workspace loaded.");
   } catch (error) {
     showToast(error.message || "The access key file could not be read.");
   }
 }
 
-async function refreshCloudProject(silent = false) {
+function restoreCloudSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") throw new Error("The cloud project has no readable workspace snapshot.");
+  if (snapshot.beta && Array.isArray(snapshot.beta.chapters)) {
+    state = snapshot.beta;
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  }
+  if (snapshot.editor && typeof snapshot.editor === "object") {
+    editor = { ...defaultEditor(), ...snapshot.editor };
+    localStorage.setItem(editorStorageKey, JSON.stringify(editor));
+  }
+  if (snapshot.formatter && typeof snapshot.formatter === "object") {
+    const base = defaultFormatter();
+    formatter = { ...base, ...snapshot.formatter, settings: { ...base.settings, ...(snapshot.formatter.settings || {}) } };
+    localStorage.setItem(formatterStorageKey, JSON.stringify(formatter));
+  }
+  renderApp();
+  renderEditingWorkspace();
+  renderFormatter();
+}
+
+async function refreshCloudProject(silent = false, restoreSnapshot = false) {
   if (!cloudProject) return;
   try {
     const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}`);
+    cloudProject.title = result.project?.title || cloudProject.title;
+    localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
+    if (restoreSnapshot) restoreCloudSnapshot(result.snapshot);
     const decisions = result.reviewDecisions || [];
     if (result.currentVersion?.id && editor.suggestions?.length) {
       let changed = false;
