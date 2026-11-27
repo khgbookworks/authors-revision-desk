@@ -30,6 +30,20 @@ export async function onRequestGet({ request, env, params }) {
   }
 }
 
+export async function onRequestDelete({ request, env, params }) {
+  try {
+    await requireBindings(env);
+    const project = await authorizeOwner(request, env, params.id);
+    if (!project) return json({ ok: false, message: "Project access was not authorized." }, 401);
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE projects SET archived_at = ?, updated_at = ? WHERE id = ?").bind(now, now, project.id).run();
+    await env.DB.prepare("UPDATE project_shares SET revoked_at = ? WHERE project_id = ? AND revoked_at IS NULL").bind(now, project.id).run();
+    return json({ ok: true, archived: true, message: "Project archived and all collaboration links revoked." });
+  } catch (error) {
+    return errorResponse(error, "The project could not be archived.");
+  }
+}
+
 export async function onRequestPut({ request, env, params }) {
   try {
     await requireBindings(env);
