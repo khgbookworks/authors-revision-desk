@@ -31,6 +31,7 @@ jobs:
           node --check "functions/api/projects/[id].js"
           node --check "functions/api/projects/[id]/shares.js"
           node --check "functions/api/reviews/[shareId].js"
+          node --check review.js
           node --check functions/api/ai-edit.js
           node --check "functions/api/google-docs/[action].js"
           test -s migrations/0001_manuscript_workspace.sql
@@ -41,6 +42,9 @@ jobs:
           test -s dist/index.html
           test -s dist/app.js
           test -s dist/styles.css
+          test -s dist/review.html
+          test -s dist/review.css
+          test -s dist/review.js
       - name: Verify formatter controls and exports
         run: |
           node --input-type=module <<'NODE'
@@ -70,6 +74,7 @@ jobs:
             "functions/api/projects/[id].js",
             "functions/api/projects/[id]/shares.js",
             "functions/api/reviews/[shareId].js",
+            "review.html", "review.css", "review.js",
             "migrations/0001_manuscript_workspace.sql"
           ];
           for (const path of backendFiles) {
