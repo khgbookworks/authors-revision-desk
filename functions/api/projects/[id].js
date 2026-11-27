@@ -21,7 +21,10 @@ export async function onRequestGet({ request, env, params }) {
     const reviewDecisions = await env.DB.prepare(
       "SELECT d.suggestion_id, d.version_id, d.decision, d.comment, d.updated_at, s.label AS share_label, s.role FROM review_decisions d JOIN project_shares s ON s.id = d.share_id WHERE s.project_id = ? ORDER BY d.updated_at DESC"
     ).bind(project.id).all();
-    return json({ ok: true, project, currentVersion, isCurrentVersion: currentVersion.id === project.current_version_id, versions: versions.results || [], reviewDecisions: reviewDecisions.results || [], snapshot });
+    const editorSubmissions = await env.DB.prepare(
+      "SELECT id, version_id, submission_json, created_at FROM editor_submissions WHERE project_id = ? ORDER BY created_at DESC"
+    ).bind(project.id).all();
+    return json({ ok: true, project, currentVersion, isCurrentVersion: currentVersion.id === project.current_version_id, versions: versions.results || [], reviewDecisions: reviewDecisions.results || [], editorSubmissions: (editorSubmissions.results || []).map((item) => ({ id: item.id, version_id: item.version_id, created_at: item.created_at, ...JSON.parse(item.submission_json) })), snapshot });
   } catch (error) {
     return errorResponse(error, "The project could not be loaded.");
   }
