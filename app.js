@@ -595,10 +595,42 @@ function switchView(view) {
 function feedbackMarkdown(chapter) {
   const lines = [`# Reader feedback: ${state.title}`, "", `## ${chapter.title}`, "", "This is reader perspective and suggestion only. No feedback in this report has been applied to the manuscript.", "", `Original word count: ${wordCount(chapter.draft)}`, `Author's copy word count: ${wordCount(chapter.improved)}`, ""];
   feedbackDefinitions.forEach(([key, label, question]) => { lines.push(`### ${label}`, "", `_${question}_`, "", chapter.feedback[key] || "No reader note recorded.", ""); });
-  lines.push("### General reader letter", "", chapter.feedback.general || "No general reader letter recorded.", "", "### Requested feedback focus", "", chapter.customFocus || "No extra focus recorded.", "", "### Author's decision after review", "", chapter.authorDecision || "No decision recorded yet.", "", "### Possible next steps", "", (chapter.suggestionTypes || []).map((key) => suggestionTypes.find(([type]) => type === key)?.[1]).filter(Boolean).join(", ") || "No next step selected.", "", "### Reader suggested passes", "", (chapter.editingPasses || []).map((pass, index) => `${index + 1}. ${pass.title || "Untitled suggestion"}${pass.notes ? `: ${pass.notes}` : ""}`).join("\n") || "No additional suggestions recorded.", "", "### Manuscript status", "", "The source wording remains separate. Any author copy changes are author controlled.");
+  lines.push("### General reader letter", "", chapter.feedback.general || "No general reader letter recorded.", "", "### Requested feedback focus", "", chapter.customFocus || "No extra focus recorded.", "", "### Author's decision after review", "", chapter.authorDecision || "No decision recorded yet.", "", "### Possible next steps", "", (chapter.suggestionTypes || []).map((key) => suggestionTypes.find(([type]) => type === key)?.[1]).filter(Boolean).join(", ") || "No next step selected.", "", "### Reader suggested passes", "", (chapter.editingPasses || []).map((pass, index) => `${index + 1}. ${pass.title || "Untitled suggestion"}${pass.notes ? `: ${pass.notes}` : ""}`).join("\n") || "No additional suggestions recorded.");
+  if (chapter.aiReport) {
+    lines.push("", "### AI-assisted evidence", "", "This report is machine-generated and should be reviewed by a human before sharing.");
+    (chapter.aiReport.evidence || []).forEach((item) => lines.push(`> ${item.quote}`, "", item.observation, ""));
+    lines.push("### AI-assisted suggestions", "");
+    (chapter.aiReport.suggestions || []).forEach((item, index) => lines.push(`${index + 1}. **${item.priority} priority:** ${item.suggestion} ${item.reason}`));
+    lines.push("", "### Questions raised by the AI reader", "", (chapter.aiReport.readerQuestions || []).map((item) => `- ${item}`).join("\n") || "No questions recorded.");
+  }
+  lines.push("", "### Manuscript status", "", "The source wording remains separate. Any author copy changes are author controlled.");
   return lines.join("\n");
 }
-function allFeedbackMarkdown() { return [`# Reader feedback: ${state.title}`, "", "This report contains reader perspective and suggestions only. It does not rewrite the manuscript.", "", ...state.chapters.map(feedbackMarkdown)].join("\n\n---\n\n"); }
+function allFeedbackMarkdown() {
+  const chapters = state.chapters.map(feedbackMarkdown);
+  const report = state.bookReport ? [
+    "# Whole-book AI-assisted synthesis",
+    "",
+    state.bookReport.basis || "Synthesis of available chapter reports, not a fresh full-manuscript read.",
+    "",
+    "## Overall impression", state.bookReport.overallImpression || "",
+    "",
+    "## Narrative arc", state.bookReport.narrativeArc || "",
+    "",
+    "## Character arcs", ...(state.bookReport.characterArcs || []).map((item) => `- ${item}`),
+    "",
+    "## Themes and patterns", ...(state.bookReport.themesAndPatterns || []).map((item) => `- ${item}`),
+    "",
+    "## Pacing", state.bookReport.pacingAcrossBook || "",
+    "",
+    "## Continuity questions", ...(state.bookReport.continuityChecks || []).map((item) => `- ${item}`),
+    "",
+    "## Reader fit", state.bookReport.readerFit || "",
+    "",
+    "## Revision priorities", ...(state.bookReport.priorityActions || []).map((item) => `- [${item.priority}] ${item.action}: ${item.reason}`)
+  ].join("\n") : "";
+  return [`# Reader feedback: ${state.title}`, "", "This report contains reader perspective and suggestions only. It does not rewrite the manuscript.", "", ...chapters, report].filter(Boolean).join("\n\n---\n\n");
+}
 function manuscriptText(chapter) { return chapter.improved || chapter.draft; }
 function allManuscriptText() { return state.chapters.map((chapter) => manuscriptText(chapter)).join("\n\n\n"); }
 function scopeChapter() { const scope = $("#exportScope"); return scope && scope.value === "current" ? selectedChapter() : null; }
