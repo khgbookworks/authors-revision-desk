@@ -53,3 +53,14 @@ CREATE TABLE IF NOT EXISTS review_decisions (
 
 CREATE INDEX IF NOT EXISTS idx_review_decisions_share
   ON review_decisions(share_id, version_id);
+
+CREATE TABLE IF NOT EXISTS ai_usage (
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  usage_date TEXT NOT NULL,
+  requests INTEGER NOT NULL DEFAULT 0,
+  input_characters INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(project_id, usage_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_usage_date
+  ON ai_usage(usage_date);
