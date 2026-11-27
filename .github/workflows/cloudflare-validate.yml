@@ -26,8 +26,14 @@ jobs:
         run: |
           node --check app.js
           node --check functions/api/health.js
+          node --check functions/api/_shared.js
+          node --check functions/api/projects/index.js
+          node --check "functions/api/projects/[id].js"
+          node --check "functions/api/projects/[id]/shares.js"
+          node --check "functions/api/reviews/[shareId].js"
           node --check functions/api/ai-edit.js
           node --check "functions/api/google-docs/[action].js"
+          test -s migrations/0001_manuscript_workspace.sql
       - name: Build static application
         run: npm run build
       - name: Verify build output
@@ -58,5 +64,21 @@ jobs:
           const absent = requiredCode.filter((token) => !app.includes(token));
           if (!html.includes("data-download-docx")) absent.push("DOCX download button");
           if (absent.length) throw new Error(`Missing formatter implementation: ${absent.join(", ")}`);
-          console.log("Formatter controls and export hooks verified.");
+          const backendFiles = [
+            "functions/api/_shared.js",
+            "functions/api/projects/index.js",
+            "functions/api/projects/[id].js",
+            "functions/api/projects/[id]/shares.js",
+            "functions/api/reviews/[shareId].js",
+            "migrations/0001_manuscript_workspace.sql"
+          ];
+          for (const path of backendFiles) {
+            const { existsSync } = await import("node:fs");
+            if (!existsSync(path)) throw new Error(`Missing backend file: ${path}`);
+          }
+          const backend = readFileSync("functions/api/projects/[id].js", "utf8");
+          for (const token of ["authorizeOwner", "loadProjectSnapshot", "project_versions"]) {
+            if (!backend.includes(token)) throw new Error(`Missing persistent backend behavior: ${token}`);
+          }
+          console.log("Formatter controls, exports, and backend routes verified.");
           NODE
