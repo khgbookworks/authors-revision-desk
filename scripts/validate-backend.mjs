@@ -13,7 +13,7 @@ const bookApi = readFileSync("functions/api/beta-read/book.js", "utf8");
 const appSource = readFileSync("app.js", "utf8");
 const htmlSource = readFileSync("index.html", "utf8");
 
-for (const table of ["projects", "project_versions", "project_shares", "review_decisions", "ai_usage"]) {
+for (const table of ["projects", "project_versions", "project_shares", "review_decisions", "ai_usage", "editor_submissions"]) {
   assert.match(schema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`), `Missing ${table} table`);
 }
 assert.match(schema, /version_id TEXT NOT NULL REFERENCES project_versions/);
@@ -22,7 +22,15 @@ assert.doesNotMatch(shares, /"undefined"/);
 assert.match(projectApi, /await env\.DB\.batch\(/);
 assert.match(createApi, /await env\.DB\.batch\(/);
 assert.match(reviews, /const versionId = share\.version_id/);
-assert.match(reviews, /share\.role !== "author_review"/);
+assert.match(reviews, /share\.role === "editor"/);
+assert.match(reviews, /INSERT INTO editor_submissions/);
+assert.match(projectApi, /SELECT id, version_id, submission_json, created_at FROM editor_submissions/);
+assert.match(projectApi, /export async function onRequestDelete/);
+assert.match(appSource, /function renderCloudDashboard/);
+assert.match(appSource, /function archiveCurrentCloudProject/);
+assert.match(appSource, /data-import-editor-submission/);
+assert.match(htmlSource, /cloudProjectSelect/);
+assert.match(htmlSource, /data-cloud-editor-share/);
 assert.match(aiEditApi, /reserveAiUsage/);
 assert.match(betaApi, /reserveAiUsage/);
 assert.match(bookApi, /reserveAiUsage/);
