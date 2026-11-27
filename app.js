@@ -90,11 +90,20 @@ function renderCloudActions() {
   share.hidden = !connected;
 }
 
+async function ensureCloudBackend() {
+  const response = await fetch("/api/health", { cache: "no-store" });
+  const health = await response.json().catch(() => ({}));
+  if (!response.ok || !health.backend?.ready) {
+    throw new Error("Cloud storage is not connected on this deployment yet. Your manuscript has not been uploaded. Configure the D1 and R2 bindings on Cloudflare Pages first.");
+  }
+}
+
 async function createCloudProject() {
   const hasContent = state.chapters.length || editor.sourceText.trim() || formatter.sourceText.trim();
   if (!hasContent) { showToast("Open a manuscript or add editing or formatting content before creating a cloud project."); return; }
   const title = state.title || editor.title || formatter.title || "Untitled manuscript";
   try {
+    await ensureCloudBackend();
     const result = await cloudRequest("/api/projects", "POST", { title, snapshot: cloudSnapshot() }, "");
     cloudProject = { id: result.project.id, title: result.project.title, ownerToken: result.ownerToken };
     localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
