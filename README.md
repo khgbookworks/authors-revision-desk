@@ -44,7 +44,7 @@ The formatter can export:
 
 Authors can paste text or choose TXT, Markdown, HTML, DOCX, and PDF files. DOCX and text based PDF files are read in the browser. Scanned PDFs that contain only images need OCR before import.
 
-This is a client side app. Manuscript text, feedback, formatting preferences, and revisions are stored in the browser's local storage. No login or manuscript server is required. Authors should download a project or format backup before clearing browser data.
+The app retains browser-local storage as a working mode. The Cloudflare backend adds persistent project snapshots in R2, project and version metadata in D1, private access keys, revocable collaboration links, and author review decisions. Cloud storage is not considered active until the D1 and R2 bindings are configured. The health endpoint reports that state instead of pretending that local storage is cloud backup. Authors should keep a separate export backup as well.
 
 If an AI reader has supplied notes, treat those notes as unverified suggestions rather than as a human reader's final judgment. The app keeps the wording of those notes and does not present them as an editorial verdict.
 
@@ -94,3 +94,8 @@ The editing workspace now includes a native `.docx` export with OOXML `w:ins` an
 Authors can optionally define the voice to protect, editing tone, intended audience, protected phrases or spellings, and custom instructions. AI output is intended to remain a suggestion and stay pending until the author approves it. The Cloudflare migration branch currently reports built-in AI as unavailable; the interface checks the service status before sending manuscript text. The Workers AI integration will be added and tested in a later migration phase.
 
 Google Docs controls are not connected in the Cloudflare migration branch yet. The interface checks the service status before sending manuscript text, and the API returns an explicit unavailable response until an authorized integration is implemented. Native DOCX, HTML, and JSON exports remain available.
+
+
+## Persistent Cloudflare backend
+
+The backend schema and Pages Function routes are in this branch. Follow [BACKEND_SETUP.md](BACKEND_SETUP.md) to create the D1 database, R2 bucket, apply the migration, and connect the `DB` and `MANUSCRIPTS` bindings. The API supports project creation, owner-authenticated loading, immutable version saves, time-limited collaboration links, revocation, and author review decisions. The API is not production-ready until the frontend review flow and live Cloudflare bindings have been tested end to end.
