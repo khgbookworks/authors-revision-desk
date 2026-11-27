@@ -1,3 +1,42 @@
+# Author's Revision Desk build plan
+
+## Current development status
+
+The following work has been implemented on the isolated `formatter-rebuild` branch. It is not deployed to production and has not been merged into `main`.
+
+- [x] D1 schema for projects, immutable versions, private shares, review decisions, and per-project AI usage.
+- [x] Pages Function API for project creation, owner-authenticated load/save, version history, share creation, and share revocation.
+- [x] R2 manuscript snapshot storage and D1 metadata storage.
+- [x] Private author-review page with per-suggestion accept/reject/comment and chapter comments.
+- [x] Owner recovery-key export/import and cloud response inbox.
+- [x] Owner-side sync of accepted/rejected decisions to the matching local editing suggestions. Original manuscript text is not changed by those decisions.
+- [x] Workers AI routes for editing suggestions, chapter beta reports, and whole-book synthesis from chapter reports.
+- [x] Per-project AI limits: 40 requests and 250,000 input characters per UTC day.
+- [x] AI disclosure in the interface and AI-assisted report labels.
+- [x] DOCX/HTML formatter import preserves supported rich text (bold, italics, headings, paragraph structure) in preview and exports.
+- [x] DOCX export writes rich text runs for bold, italic, underline, superscript, and subscript.
+- [x] Formatter content checks for empty sections, duplicate headings, long paragraphs, missing metadata, and contents-page setup.
+- [x] CI syntax, build, schema, token, route, and formatter-control checks pass on the development branch.
+- [ ] Create and bind Cloudflare D1, R2, and Workers AI resources in the Pages dashboard.
+- [ ] Test the live API and the full create → save → reconnect → review → author decision → owner sync flow.
+- [ ] Open exported DOCX in Microsoft Word and EPUB in an e-reader; verify PDF pagination in browser print preview.
+- [ ] Test real DOCX import samples with headings, bold, italics, lists, scene breaks, and dialogue.
+- [ ] Implement editor collaborator submissions and a project-level collaboration inbox.
+- [ ] Complete project dashboard, project discovery, archive/delete, and version restore controls.
+- [ ] Add whole-book report export and improve review-round history.
+- [ ] Decide whether Google Docs integration is still required; current endpoint remains a clearly disabled stub.
+- [ ] Complete browser-based responsive, accessibility, and security testing before production deployment.
+
+## Operation sequence
+
+1. Finish code-level formatter and backend validation on `formatter-rebuild`.
+2. Configure Cloudflare bindings and deploy a branch preview only after the code checks pass.
+3. Run live end-to-end tests with a sample manuscript and verify access control, saved versions, review decisions, AI limits, and exports.
+4. Fix issues found in live tests; do not merge into `main` until the user approves the verified build.
+5. Continue with editor collaboration, project dashboard, report exports, and remaining production QA.
+
+---
+
 # Author's Revision Desk TODO
 
 ## Beta reading is reader perspective and suggestion only
@@ -31,8 +70,8 @@ Acceptance criteria:
 3. If the author is unsure of the book type, the formatter can recommend a professional default from the manuscript structure and keep the choice editable.
 4. Formatting changes presentation only and do not rewrite, paraphrase, or change the author's words or voice.
 5. The author can preview the formatted result before export.
-6. The author can download the formatted book as EPUB, PDF, DOC, and a plain HTML backup.
-7. The formatter keeps source text and formatting preferences local in the browser and offers a backup export.
+6. The author can download the formatted book as EPUB, PDF, DOCX, DOC, and a plain HTML backup.
+7. DOCX and HTML imports retain supported rich text, including bold, italics, headings, and paragraph structure.
 8. The formatter works on phones and computers with clear controls and readable previews.
 
 ## Existing revision workspace
@@ -46,7 +85,7 @@ Acceptance criteria:
 5. Feedback and project data persist locally in the browser.
 6. Feedback can be downloaded separately as Markdown for the whole manuscript or the current chapter.
 7. The project can be downloaded as a JSON backup.
-8. The interface is responsive, keyboard friendly, accessible, and usable without login or a backend.
+8. The interface retains a local browser mode without login. Optional cloud projects use owner access keys and server-side storage.
 9. The project includes a self contained build output suitable for static hosting such as GitHub Pages.
 
 
