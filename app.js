@@ -1088,6 +1088,59 @@ async function exportEpub() {
   downloadFile(`${slug(title)}.epub`, blob); showToast("EPUB download started.");
 }
 
+function richInlineRuns(node, marks = {}) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const value = node.nodeValue || "";
+    if (!value) return "";
+    const properties = `${marks.bold ? "<w:b/>" : ""}${marks.italic ? "<w:i/>" : ""}${marks.underline ? '<w:u w:val="single"/>' : ""}${marks.sup ? '<w:vertAlign w:val="superscript"/>' : ""}${marks.sub ? '<w:vertAlign w:val="subscript"/>' : ""}`;
+    return `<w:r>${properties ? `<w:rPr>${properties}</w:rPr>` : ""}<w:t xml:space="preserve">${xmlEscape(value)}</w:t></w:r>`;
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return "";
+  const tag = node.tagName.toLowerCase();
+  if (tag === "br") return "<w:r><w:br/></w:r>";
+  const next = {
+    ...marks,
+    bold: marks.bold || ["strong", "b"].includes(tag),
+    italic: marks.italic || ["em", "i"].includes(tag),
+    underline: marks.underline || tag === "u",
+    sup: marks.sup || tag === "sup",
+    sub: marks.sub || tag === "sub"
+  };
+  return [...node.childNodes].map((child) => richInlineRuns(child, next)).join("");
+}
+
+function richHtmlToDocxBlocks(sourceHtml) {
+  const parsed = new DOMParser().parseFromString(`<div id="docxRichRoot">${sourceHtml}</div>`, "text/html");
+  const root = parsed.querySelector("#docxRichRoot");
+  if (!root) return [];
+  const paragraph = (node, style = "Normal") => {
+    const runs = richInlineRuns(node);
+    if (!runs) return "";
+    return `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>${runs}</w:p>`;
+  };
+  const output = [];
+  const visit = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (node.nodeValue.trim()) output.push(paragraph(node));
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = node.tagName.toLowerCase();
+    if (["p", "div"].includes(tag)) {
+      if (tag === "div" && [...node.children].some((child) => ["p", "h2", "h3", "blockquote", "ul", "ol"].includes(child.tagName.toLowerCase()))) {
+        [...node.childNodes].forEach(visit);
+      } else output.push(paragraph(node));
+      return;
+    }
+    if (["h2", "h3", "h4"].includes(tag)) { output.push(paragraph(node, "Heading2")); return; }
+    if (tag === "blockquote") { output.push(paragraph(node, "Quote")); return; }
+    if (tag === "li") { output.push(paragraph(node, "ListParagraph")); return; }
+    [...node.childNodes].forEach(visit);
+  };
+  [...root.childNodes].forEach(visit);
+  return output.filter(Boolean);
+}
+
 async function exportDocx() {
   if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; }
   if (!window.JSZip) { showToast("The Word export helper is still loading. Try again in a moment."); return; }
@@ -1122,10 +1175,11 @@ async function exportDocx() {
   }
   sections.forEach((chapter, index) => {
     blocks.push(para(chapter.title, "Heading1", index > 0 || blocks.length > 0));
-    chapter.draft.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).forEach((p) => blocks.push(para(p)));
+    if (chapter.richHtml) blocks.push(...richHtmlToDocxBlocks(chapter.richHtml));
+    else chapter.draft.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).forEach((p) => blocks.push(para(p)));
   });
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${blocks.join("")}<w:sectPr><w:pgSz w:w="${twips(pageWidth)}" w:h="${twips(pageHeight)}"/><w:pgMar w:top="${marginTwips}" w:right="1037" w:bottom="${marginTwips}" w:left="1037" w:header="450" w:footer="450" w:gutter="0"/></w:sectPr></w:body></w:document>`;
-  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${fontName}" w:hAnsi="${fontName}"/><w:sz w:val="${halfPoints}"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="${line}" w:lineRule="auto"/><w:ind w:firstLine="${indent}"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:rPr><w:b/><w:sz w:val="40"/></w:rPr><w:pPr><w:jc w:val="center"/><w:spacing w:after="360"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:rPr><w:i/><w:sz w:val="26"/></w:rPr><w:pPr><w:jc w:val="center"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Author"><w:name w:val="Author"/><w:pPr><w:jc w:val="center"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="420" w:after="300"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:sz w:val="30"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="SmallText"><w:name w:val="Small Text"/><w:rPr><w:sz w:val="18"/></w:rPr><w:pPr><w:ind w:firstLine="0"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Dedication"><w:name w:val="Dedication"/><w:rPr><w:i/></w:rPr><w:pPr><w:jc w:val="center"/></w:pPr></w:style></w:styles>`;
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${fontName}" w:hAnsi="${fontName}"/><w:sz w:val="${halfPoints}"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="${line}" w:lineRule="auto"/><w:ind w:firstLine="${indent}"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:rPr><w:b/><w:sz w:val="40"/></w:rPr><w:pPr><w:jc w:val="center"/><w:spacing w:after="360"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:rPr><w:i/><w:sz w:val="26"/></w:rPr><w:pPr><w:jc w:val="center"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Author"><w:name w:val="Author"/><w:pPr><w:jc w:val="center"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="420" w:after="300"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:sz w:val="30"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="SmallText"><w:name w:val="Small Text"/><w:rPr><w:sz w:val="18"/></w:rPr><w:pPr><w:ind w:firstLine="0"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Dedication"><w:name w:val="Dedication"/><w:rPr><w:i/></w:rPr><w:pPr><w:jc w:val="center"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/></w:pPr><w:rPr><w:b/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:pPr><w:ind w:left="360"/></w:pPr><w:rPr><w:i/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:pPr><w:ind w:left="360"/></w:pPr></w:style></w:styles>`;
   const zip = new window.JSZip();
   zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`);
   zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
