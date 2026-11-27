@@ -45,9 +45,9 @@ The formatter can export:
 
 Authors can paste text or choose TXT, Markdown, HTML, DOCX, and PDF files. DOCX and text based PDF files are read in the browser. Scanned PDFs that contain only images need OCR before import.
 
-The app retains browser-local storage as a working mode. The Cloudflare backend adds persistent project snapshots in R2, project and version metadata in D1, private access keys, revocable collaboration links, and author review decisions. Cloud storage is not considered active until the D1 and R2 bindings are configured. The health endpoint reports that state instead of pretending that local storage is cloud backup. Authors should keep a separate export backup as well.
+The app retains browser-local storage as a working mode. The Cloudflare backend adds persistent project snapshots in R2, project and version metadata in D1, private access keys, revocable author-review and editor-collaboration links, editor proposal submissions, author review decisions, and project archiving. A browser-local project dashboard can switch between cloud projects whose recovery keys have been connected on that browser; it is not yet an account-wide cross-device project directory. Cloud storage is not considered active until the D1 and R2 bindings are configured. The health endpoint reports that state instead of pretending that local storage is cloud backup. Authors should keep a separate export backup as well.
 
-If an AI reader has supplied notes, treat those notes as unverified suggestions rather than as a human reader's final judgment. The app keeps the wording of those notes and does not present them as an editorial verdict.
+If an AI reader has supplied notes, treat those notes as unverified suggestions rather than as a human reader's final judgment. The app keeps the wording of those notes and does not present them as an editorial verdict. Workers AI is metered by Cloudflare; application request limits are guardrails, not a guaranteed dollar spend cap. Check Cloudflare's [current Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) before enabling AI for a project.
 
 ## Local development
 
@@ -74,7 +74,9 @@ The active development branch is `formatter-rebuild`. The production Pages branc
 - `POST /api/ai-edit` provides authenticated editing suggestions.
 - `POST /api/beta-read` provides an authenticated chapter-level reader report.
 - `POST /api/beta-read/book` synthesizes the available chapter reports into a whole-book assessment.
-- Google Docs routes remain explicit unavailable stubs until an authorized integration is configured.
+- `POST /api/reviews/:shareId` accepts author decisions or editor proposals according to the link role.
+- `DELETE /api/projects/:id` archives a project and revokes its active collaboration links.
+- Google Docs routes remain explicit unavailable stubs until a Google OAuth application and authorized integration are configured.
 - The browser checks service readiness and requires a cloud project owner key before sending manuscript text to Workers AI.
 
 Do not disable the existing GitHub Pages workflow or merge this development branch until the Cloudflare Pages build, live API, manuscript restore, author review, AI usage limits, and exports have been tested.
