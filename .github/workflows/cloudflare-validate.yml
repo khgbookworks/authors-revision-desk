@@ -32,6 +32,8 @@ jobs:
           node --check "functions/api/projects/[id]/shares.js"
           node --check "functions/api/reviews/[shareId].js"
           node --check review.js
+          node --check scripts/validate-backend.mjs
+          node scripts/validate-backend.mjs
           node --check functions/api/ai-edit.js
           node --check "functions/api/google-docs/[action].js"
           test -s migrations/0001_manuscript_workspace.sql
