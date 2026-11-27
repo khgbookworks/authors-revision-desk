@@ -10,6 +10,7 @@ The following work has been implemented on the isolated `formatter-rebuild` bran
 - [x] Private author-review page with per-suggestion accept/reject/comment and chapter comments.
 - [x] Owner recovery-key export/import and cloud response inbox.
 - [x] Owner-side sync of accepted/rejected decisions to the matching local editing suggestions. Original manuscript text is not changed by those decisions.
+- [x] Cloud version selector and restore-to-local-workspace control; restoring does not overwrite the saved cloud history.
 - [x] Workers AI routes for editing suggestions, chapter beta reports, and whole-book synthesis from chapter reports.
 - [x] Per-project AI limits: 40 requests and 250,000 input characters per UTC day.
 - [x] AI disclosure in the interface and AI-assisted report labels.
@@ -22,7 +23,7 @@ The following work has been implemented on the isolated `formatter-rebuild` bran
 - [ ] Open exported DOCX in Microsoft Word and EPUB in an e-reader; verify PDF pagination in browser print preview.
 - [ ] Test real DOCX import samples with headings, bold, italics, lists, scene breaks, and dialogue.
 - [ ] Implement editor collaborator submissions and a project-level collaboration inbox.
-- [ ] Complete project dashboard, project discovery, archive/delete, and version restore controls.
+- [ ] Complete project dashboard, project discovery, and archive/delete controls.
 - [ ] Add whole-book report export and improve review-round history.
 - [ ] Decide whether Google Docs integration is still required; current endpoint remains a clearly disabled stub.
 - [ ] Complete browser-based responsive, accessibility, and security testing before production deployment.
