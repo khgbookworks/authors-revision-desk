@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - cloudflare-migration
+      - formatter-rebuild
   pull_request:
     branches:
       - main
