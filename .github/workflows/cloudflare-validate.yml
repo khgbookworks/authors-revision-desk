@@ -32,6 +32,7 @@ jobs:
           node --check "functions/api/projects/[id]/shares.js"
           node --check "functions/api/reviews/[shareId].js"
           node --check review.js
+          node --check review.js
           node --check scripts/validate-backend.mjs
           node scripts/validate-backend.mjs
           python - <<'PY'
@@ -40,7 +41,7 @@ jobs:
           connection = sqlite3.connect(":memory:")
           connection.executescript(Path("migrations/0001_manuscript_workspace.sql").read_text())
           tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-          required = {"projects", "project_versions", "project_shares", "review_decisions"}
+          required = {"projects", "project_versions", "project_shares", "review_decisions", "editor_submissions", "ai_usage"}
           missing = required - tables
           if missing:
               raise SystemExit(f"Missing database tables: {sorted(missing)}")
