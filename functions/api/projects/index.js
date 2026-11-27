@@ -25,12 +25,14 @@ export async function onRequestPost({ request, env }) {
     });
 
     try {
-      await env.DB.prepare(
-        "INSERT INTO projects (id, title, owner_token_hash, current_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
-      ).bind(projectId, title, ownerTokenHash, versionId, now, now).run();
-      await env.DB.prepare(
-        "INSERT INTO project_versions (id, project_id, version_number, label, object_key, created_at, created_by) VALUES (?, ?, 1, ?, ?, ?, 'owner')"
-      ).bind(versionId, projectId, "Original manuscript", objectKey, now).run();
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO projects (id, title, owner_token_hash, current_version_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(projectId, title, ownerTokenHash, versionId, now, now),
+        env.DB.prepare(
+          "INSERT INTO project_versions (id, project_id, version_number, label, object_key, created_at, created_by) VALUES (?, ?, 1, ?, ?, ?, 'owner')"
+        ).bind(versionId, projectId, "Original manuscript", objectKey, now)
+      ]);
     } catch (error) {
       await env.MANUSCRIPTS.delete(objectKey);
       throw error;
