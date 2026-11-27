@@ -25,6 +25,7 @@ const suggestionTypes = [
 const storageKey = "authors-revision-desk-project";
 const formatterStorageKey = "authors-revision-desk-formatter";
 const editorStorageKey = "authors-revision-desk-editor";
+const cloudStorageKey = "authors-revision-desk-cloud-project";
 const makeId = () => `chapter-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -39,7 +40,106 @@ const defaultFormatter = () => ({ title: "", author: "", subtitle: "", copyright
 let state = loadState() || { title: "", chapters: [], selectedId: null, updatedAt: null };
 let formatter = loadFormatterState();
 let editor = loadEditorState();
+let cloudProject = loadCloudProject();
 let saveTimer;
+
+function loadCloudProject() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(cloudStorageKey));
+    return saved && saved.id && saved.ownerToken ? saved : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function cloudSnapshot() {
+  return {
+    schemaVersion: 1,
+    beta: state,
+    editor,
+    formatter,
+    savedAt: new Date().toISOString()
+  };
+}
+
+async function cloudRequest(path, method = "GET", payload = null, token = cloudProject?.ownerToken) {
+  const headers = { "Accept": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (payload !== null) headers["Content-Type"] = "application/json";
+  const response = await fetch(path, {
+    method,
+    headers,
+    body: payload === null ? undefined : JSON.stringify(payload),
+    cache: "no-store"
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || `Cloud request failed (${response.status}).`);
+  return data;
+}
+
+function renderCloudActions() {
+  const status = $("#cloudStatus");
+  const create = $("[data-cloud-create]");
+  const save = $("[data-cloud-save]");
+  const share = $("[data-cloud-share]");
+  if (!status || !create || !save || !share) return;
+  const connected = Boolean(cloudProject);
+  status.textContent = connected ? `Cloud project connected · ${cloudProject.title}` : "Cloud backup is not connected";
+  create.hidden = connected;
+  save.hidden = !connected;
+  share.hidden = !connected;
+}
+
+async function createCloudProject() {
+  const hasContent = state.chapters.length || editor.sourceText.trim() || formatter.sourceText.trim();
+  if (!hasContent) { showToast("Open a manuscript or add editing or formatting content before creating a cloud project."); return; }
+  const title = state.title || editor.title || formatter.title || "Untitled manuscript";
+  try {
+    const result = await cloudRequest("/api/projects", "POST", { title, snapshot: cloudSnapshot() }, "");
+    cloudProject = { id: result.project.id, title: result.project.title, ownerToken: result.ownerToken };
+    localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
+    renderCloudActions();
+    showToast("Cloud project created. Your private owner key is saved in this browser.");
+    alert("Your cloud project is ready. Keep this browser profile private and download a separate backup. The owner key is stored in this browser and cannot be recovered if browser data is cleared.");
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function saveCloudVersion() {
+  if (!cloudProject) return createCloudProject();
+  try {
+    const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}`, "PUT", {
+      label: "Saved workspace version",
+      snapshot: cloudSnapshot()
+    });
+    showToast(`Cloud version ${result.version.versionNumber} saved.`);
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function createAuthorReviewLink() {
+  if (!cloudProject) { showToast("Create a cloud project before sharing a review link."); return; }
+  try {
+    await saveCloudVersion();
+    const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}/shares`, "POST", {
+      role: "author_review",
+      label: "Author review",
+      expiresInDays: 14
+    });
+    const link = new URL("review.html", window.location.href);
+    link.hash = new URLSearchParams({ share: result.share.id, key: result.token }).toString();
+    try {
+      await navigator.clipboard.writeText(link.toString());
+      showToast("Private author review link copied. It expires in 14 days.");
+    } catch (error) {
+      prompt("Copy this private author review link. Anyone with it can view the shared manuscript and submit review decisions.", link.toString());
+    }
+  } catch (error) {
+    showToast(error.message);
+  }
+}
 
 function loadState() {
   try {
@@ -497,6 +597,9 @@ async function googleSync(action) {
 
 function bindGlobalActions() {
   $("[data-create-project]").onclick = () => createProject($("#projectTitle").value, $("#manuscriptInput").value);
+  $("[data-cloud-create]").onclick = createCloudProject;
+  $("[data-cloud-save]").onclick = saveCloudVersion;
+  $("[data-cloud-share]").onclick = createAuthorReviewLink;
   $("#fileInput").onchange = (event) => readFileInto(event.target.files[0], $("#manuscriptInput"), $("#projectTitle"), "File loaded. Read it over, then open the beta reading desk.");
   $("#dropZone").ondragover = (event) => { event.preventDefault(); $("#dropZone").classList.add("is-dragging"); };
   $("#dropZone").ondragleave = () => $("#dropZone").classList.remove("is-dragging");
@@ -783,6 +886,7 @@ function renderInitialView() {
 }
 
 bindGlobalActions();
+renderCloudActions();
 renderApp();
 renderFormatter();
 renderEditingWorkspace();
