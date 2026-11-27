@@ -295,11 +295,24 @@ async function refreshCloudProject(silent = false, restoreSnapshot = false) {
         return `<article class="cloud-review-item"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(item.decision)} · ${escapeHtml(item.share_label || "Review link")}</span><p>${escapeHtml(item.comment || "No comment attached.")}</p></article>`;
       }).join("");
       const submissions = result.editorSubmissions || [];
+      const shares = result.shares || [];
+      const shareMarkup = shares.map((share) => `<article class="cloud-review-item"><strong>${escapeHtml(share.label || (share.role === "editor" ? "Editor collaboration" : "Author review"))}</strong><span>${escapeHtml(share.role)} · ${share.revoked_at ? "Revoked" : Date.parse(share.expires_at) <= Date.now() ? "Expired" : "Active"} · Expires ${new Date(share.expires_at).toLocaleDateString()}</span>${share.revoked_at || Date.parse(share.expires_at) <= Date.now() ? "" : `<button class="button button-quiet" type="button" data-revoke-share="${escapeHtml(share.id)}">Revoke link</button>`}</article>`).join("");
       const editorMarkup = submissions.map((item) => {
         const imported = editor.suggestions.some((entry) => entry.collaboratorSubmissionId === item.id);
         return `<article class="cloud-review-item"><strong>Editor proposal · ${escapeHtml(item.category || "Editorial")}</strong><span>${escapeHtml(item.location || "Location not specified")} · ${new Date(item.created_at).toLocaleString()}</span><p><b>Original:</b> ${escapeHtml(item.original)}</p><p><b>Proposed:</b> ${escapeHtml(item.proposed)}</p><p><b>Reason:</b> ${escapeHtml(item.reason)}</p><button class="button button-quiet" type="button" data-import-editor-submission="${escapeHtml(item.id)}" ${imported ? "disabled" : ""}>${imported ? "Added to editing queue" : "Add to editing queue"}</button></article>`;
       }).join("");
-      root.innerHTML = (decisionMarkup || editorMarkup) ? `<h4>Author responses</h4>${decisionMarkup || '<p class="micro-note">No author decisions yet.</p>'}<h4>Editor submissions</h4>${editorMarkup || '<p class="micro-note">No editor proposals yet.</p>'}` : '<p class="micro-note">No author or editor responses have been submitted yet.</p>';
+      root.innerHTML = (shareMarkup || decisionMarkup || editorMarkup) ? `<h4>Collaboration links</h4>${shareMarkup || '<p class="micro-note">No collaboration links created yet.</p>'}<h4>Author responses</h4>${decisionMarkup || '<p class="micro-note">No author decisions yet.</p>'}<h4>Editor submissions</h4>${editorMarkup || '<p class="micro-note">No editor proposals yet.</p>'}` : '<p class="micro-note">No collaboration links or responses yet.</p>';
+      root.querySelectorAll("[data-revoke-share]").forEach((button) => button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}/shares?shareId=${encodeURIComponent(button.dataset.revokeShare)}`, "DELETE");
+          if (cloudProject.latestShareId === button.dataset.revokeShare) delete cloudProject.latestShareId;
+          localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
+          renderCloudActions();
+          await refreshCloudProject(true);
+          showToast("Collaboration link revoked.");
+        } catch (error) { button.disabled = false; showToast(error.message); }
+      }));
       root.querySelectorAll("[data-import-editor-submission]").forEach((button) => button.addEventListener("click", () => {
         const item = submissions.find((entry) => entry.id === button.dataset.importEditorSubmission);
         if (!item || editor.suggestions.some((entry) => entry.collaboratorSubmissionId === item.id)) return;
