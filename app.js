@@ -34,7 +34,7 @@ const desk = $("#desk");
 const toast = $("#toast");
 
 const defaultFeedback = () => Object.fromEntries(feedbackDefinitions.map(([key]) => [key, ""]));
-const defaultChapter = (title, draft = "") => ({ id: makeId(), title, draft, improved: draft, feedback: defaultFeedback(), customFocus: "", authorDecision: "", suggestionTypes: [], editingPasses: [] });
+const defaultChapter = (title, draft = "") => ({ id: makeId(), title, draft, improved: draft, feedback: defaultFeedback(), customFocus: "", authorDecision: "", suggestionTypes: [], editingPasses: [], aiReport: null });
 const defaultFormatter = () => ({ title: "", author: "", subtitle: "", copyright: "", dedication: "", acknowledgements: "", sourceText: "", settings: { bookType: "auto", trimSize: "6x9", font: "newsreader", chapterStyle: "classic", includeFrontMatter: true, includeToc: true, includePageNumbers: true, includeRunningHeaders: false, margin: "standard", fontSize: "11.5", lineSpacing: "1.55", paragraphIndent: "0.22", gutter: "0.18" } });
 
 let state = loadState() || { title: "", chapters: [], selectedId: null, updatedAt: null };
@@ -272,7 +272,8 @@ function loadState() {
       customFocus: typeof chapter.customFocus === "string" ? chapter.customFocus : "",
       authorDecision: typeof chapter.authorDecision === "string" ? chapter.authorDecision : "",
       suggestionTypes: Array.isArray(chapter.suggestionTypes) ? chapter.suggestionTypes : (Array.isArray(chapter.editingTypes) ? chapter.editingTypes : []),
-      editingPasses: Array.isArray(chapter.editingPasses) ? chapter.editingPasses : []
+      editingPasses: Array.isArray(chapter.editingPasses) ? chapter.editingPasses : [],
+      aiReport: chapter.aiReport && typeof chapter.aiReport === "object" ? chapter.aiReport : null
     }));
     return saved;
   } catch (error) {
@@ -435,6 +436,8 @@ function renderCurrentChapter() {
   $("#authorDecision").value = chapter.authorDecision || "";
   $("#feedbackFields").innerHTML = feedbackDefinitions.map(([key, label, question, help]) => `<div class="feedback-group"><label for="feedback-${key}">${label}</label><span class="feedback-help">${question}</span><span class="feedback-help feedback-human-help">${help}</span><textarea class="feedback-input" id="feedback-${key}" data-feedback-key="${key}" placeholder="Write what you actually noticed..."></textarea></div>`).join("");
   feedbackDefinitions.forEach(([key]) => { $(`#feedback-${key}`).value = chapter.feedback[key] || ""; });
+  renderAiBetaEvidence(chapter);
+  renderBookReport();
   renderSuggestionPlan();
   updateSuggestionBrief();
   bindCurrentChapter();
@@ -448,6 +451,104 @@ function bindCurrentChapter() {
   $("#customFeedbackFocus").oninput = (event) => { selectedChapter().customFocus = event.target.value; persist(); updateSuggestionBrief(); };
   $("#authorDecision").oninput = (event) => { selectedChapter().authorDecision = event.target.value; persist(); updateSuggestionBrief(); };
   $$('[data-editor-tab]').forEach((tab) => tab.onclick = () => switchEditor(tab.dataset.editorTab));
+}
+
+function renderAiBetaEvidence(chapter = selectedChapter()) {
+  const root = $("#aiBetaEvidence");
+  if (!root) return;
+  const report = chapter?.aiReport;
+  if (!report) { root.innerHTML = ""; return; }
+  const evidence = (report.evidence || []).map((item) => `<article class="ai-evidence"><blockquote>${escapeHtml(item.quote)}</blockquote><p>${escapeHtml(item.observation)}</p></article>`).join("");
+  const suggestions = (report.suggestions || []).map((item) => `<li><strong>${escapeHtml(item.priority)} priority:</strong> ${escapeHtml(item.suggestion)} <span>${escapeHtml(item.reason)}</span></li>`).join("");
+  root.innerHTML = `<section class="ai-report-card"><div class="ai-report-heading"><strong>AI-assisted chapter report</strong><span>${escapeHtml(new Date(report.generatedAt || Date.now()).toLocaleString())}</span></div><p class="ai-report-disclaimer">${escapeHtml(report.source || "AI-assisted report. Review before sharing.")}</p>${evidence ? `<h4>Text-grounded evidence</h4>${evidence}` : ""}${suggestions ? `<h4>Possible next steps</h4><ul>${suggestions}</ul>` : ""}<button class="quiet-button" type="button" data-clear-ai-beta>Clear this report</button></section>`;
+  $("[data-clear-ai-beta]", root)?.addEventListener("click", () => {
+    chapter.aiReport = null;
+    persist();
+    renderAiBetaEvidence(chapter);
+  });
+}
+
+function renderBookReport() {
+  const root = $("#aiBookReport");
+  if (!root) return;
+  const report = state.bookReport;
+  if (!report) { root.innerHTML = ""; return; }
+  const list = (items) => (items || []).map((item) => `<li>${escapeHtml(typeof item === "string" ? item : item.action || "")}${item.reason ? `<span>${escapeHtml(item.reason)}</span>` : ""}</li>`).join("");
+  root.innerHTML = `<section class="ai-report-card ai-book-report"><div class="ai-report-heading"><strong>Whole-book reader synthesis</strong><span>${escapeHtml(new Date(report.generatedAt || Date.now()).toLocaleString())}</span></div><p class="ai-report-disclaimer">${escapeHtml(report.basis || "")}</p><h4>Overall impression</h4><p>${escapeHtml(report.overallImpression || "")}</p><h4>Narrative arc</h4><p>${escapeHtml(report.narrativeArc || "")}</p><h4>Character arcs</h4><ul>${list(report.characterArcs)}</ul><h4>Recurring themes and patterns</h4><ul>${list(report.themesAndPatterns)}</ul><h4>Pacing across the book</h4><p>${escapeHtml(report.pacingAcrossBook || "")}</p><h4>Continuity questions</h4><ul>${list(report.continuityChecks)}</ul><h4>Reader fit</h4><p>${escapeHtml(report.readerFit || "")}</p><h4>Revision priorities</h4><ul>${list(report.priorityActions)}</ul></section>`;
+}
+
+async function startAiBetaRead() {
+  const chapter = selectedChapter();
+  if (!chapter?.draft?.trim()) { showToast("Add the chapter text before generating a reader report."); return; }
+  if (!cloudProject) { showToast("Create a cloud copy first. AI processing is only enabled for an authenticated cloud project."); return; }
+  const button = $("[data-start-ai-beta]");
+  button.disabled = true;
+  const originalLabel = button.textContent;
+  button.textContent = "Preparing chapter report…";
+  try {
+    const healthResponse = await fetch("/api/health", { cache: "no-store" });
+    const health = await healthResponse.json().catch(() => ({}));
+    if (!healthResponse.ok || !health.backend?.ready || !health.features?.builtInAI) {
+      throw new Error("Workers AI or cloud storage is not connected. Your manuscript has not been sent for analysis.");
+    }
+    const response = await fetch("/api/beta-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cloudProject.ownerToken}` },
+      body: JSON.stringify({
+        projectId: cloudProject.id,
+        bookTitle: state.title,
+        chapterId: chapter.id,
+        chapterTitle: chapter.title,
+        text: chapter.draft,
+        focus: chapter.customFocus || "Give a balanced, honest reader response."
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "The beta-reading report could not be generated.");
+    chapter.aiReport = data.report;
+    feedbackDefinitions.forEach(([key]) => { chapter.feedback[key] = data.report[key] || ""; });
+    persist("AI-assisted report saved locally");
+    renderCurrentChapter();
+    showToast("Chapter report generated. Review it before sharing it as reader feedback.");
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
+}
+
+async function startAiBookReport() {
+  if (!cloudProject) { showToast("Create a cloud copy before requesting a whole-book synthesis."); return; }
+  const chapterReports = state.chapters.filter((chapter) => chapter.aiReport).map((chapter) => ({ title: chapter.title, report: chapter.aiReport }));
+  if (!chapterReports.length) { showToast("Generate at least one chapter report first."); return; }
+  const button = $("[data-start-ai-book-report]");
+  button.disabled = true;
+  const originalLabel = button.textContent;
+  button.textContent = "Synthesizing reports…";
+  try {
+    const healthResponse = await fetch("/api/health", { cache: "no-store" });
+    const health = await healthResponse.json().catch(() => ({}));
+    if (!healthResponse.ok || !health.backend?.ready || !health.features?.builtInAI) {
+      throw new Error("Workers AI or cloud storage is not connected.");
+    }
+    const response = await fetch("/api/beta-read/book", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cloudProject.ownerToken}` },
+      body: JSON.stringify({ projectId: cloudProject.id, bookTitle: state.title, chapterReports })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "The whole-book synthesis could not be generated.");
+    state.bookReport = data.report;
+    persist("Whole-book synthesis saved locally");
+    renderBookReport();
+    showToast("Whole-book synthesis generated from the available chapter reports.");
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
 }
 
 function renderSuggestionPlan() {
@@ -669,10 +770,14 @@ async function startAiEdit() {
   button.disabled = true;
   button.textContent = "Checking AI availability…";
   try {
+    if (!cloudProject) {
+      showToast("Create a cloud copy before using AI editing. Your manuscript has not been sent to an AI service.");
+      return;
+    }
     const healthResponse = await fetch("/api/health", { cache: "no-store" });
     const health = await healthResponse.json();
-    if (!healthResponse.ok || !health.features?.builtInAI) {
-      showToast("Built-in AI is not enabled yet. Your manuscript has not been sent to an AI service. Local conservative suggestions remain available.");
+    if (!healthResponse.ok || !health.backend?.ready || !health.features?.builtInAI) {
+      showToast("Workers AI or cloud storage is not connected. Your manuscript has not been sent to an AI service.");
       return;
     }
     editor.title = $("#editTitle").value.trim() || editor.title || "Untitled editing project";
@@ -680,7 +785,7 @@ async function startAiEdit() {
     editor.segments = splitEditSegments(source);
     const payload = { title: editor.title, text: source, editType: effectiveEditType(), brief: editor.brief, voice: editor.voice, tone: editor.tone, audience: editor.audience, protectedPhrases: editor.protectedPhrases, instructions: editor.instructions };
     button.textContent = "Preparing suggestions…";
-    const response = await fetch("/api/ai-edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const response = await fetch("/api/ai-edit", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cloudProject.ownerToken}` }, body: JSON.stringify({ ...payload, projectId: cloudProject.id }) });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.message || "The secure AI service could not complete this request.");
     editor.suggestions = (data.suggestions || []).map((item, index) => ({ id: makeId(), index: Number.isInteger(item.index) ? item.index : index, original: item.original || editor.segments[index] || "", proposed: item.proposed || editor.segments[index] || "", reason: item.reason || "AI suggestion. Check it against your voice before approving.", confidence: item.confidence || "unrated", source: "ai", status: "pending" }));
@@ -752,6 +857,8 @@ function bindGlobalActions() {
   $("#editInstructions").oninput = (event) => { editor.instructions = event.target.value; persistEditor(); };
   $("[data-start-editing]").onclick = startSuggestedEdit;
   $("[data-start-ai-edit]").onclick = startAiEdit;
+  $("[data-start-ai-beta]").onclick = startAiBetaRead;
+  $("[data-start-ai-book-report]").onclick = startAiBookReport;
   $("[data-edit-paste]").onclick = async () => { try { const text = await navigator.clipboard.readText(); $("#editInput").value = text; editor.sourceText = text; editor.generated = false; persistEditor(); updateEditingRecommendation(); showToast(text ? "Manuscript pasted into the editing workspace." : "Your clipboard is empty."); } catch (error) { showToast("Tap inside the editing text box and paste normally."); $("#editInput").focus(); } };
   $("#editFileInput").onchange = async (event) => { const text = await readFileInto(event.target.files[0], $("#editInput"), $("#editTitle"), "Manuscript loaded. Choose an editing pass when you are ready."); if (text) { editor.sourceText = text; editor.generated = false; persistEditor(); updateEditingRecommendation(); } };
   $("#editDropZone").ondragover = (event) => { event.preventDefault(); $("#editDropZone").classList.add("is-dragging"); };
