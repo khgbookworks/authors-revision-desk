@@ -42,6 +42,10 @@ let state = loadState() || { title: "", chapters: [], selectedId: null, updatedA
 let formatter = loadFormatterState();
 let editor = loadEditorState();
 let cloudProject = loadCloudProject();
+if (cloudProject && !loadCloudRegistry().some((item) => item.id === cloudProject.id)) {
+  const existing = loadCloudRegistry();
+  localStorage.setItem(cloudRegistryKey, JSON.stringify([{ ...cloudProject, lastOpenedAt: new Date().toISOString() }, ...existing].slice(0, 30)));
+}
 let saveTimer;
 
 function loadCloudProject() {
@@ -1416,6 +1420,7 @@ function renderInitialView() {
 
 bindGlobalActions();
 renderCloudActions();
+renderCloudDashboard();
 if (cloudProject) refreshCloudProject(true);
 renderApp();
 renderFormatter();
