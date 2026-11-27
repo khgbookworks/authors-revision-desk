@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { newId, newSecret, hashSecret, bearer, authorizeShare } from "../functions/api/_shared.js";
+import { onRequestPost as submitReview } from "../functions/api/reviews/[shareId].js";
 
 const schema = readFileSync("migrations/0001_manuscript_workspace.sql", "utf8");
 const shares = readFileSync("functions/api/projects/[id]/shares.js", "utf8");
@@ -61,6 +62,38 @@ const mockEnv = {
 const authorized = await authorizeShare(new Request("https://example.test", { headers: { authorization: `Bearer ${token}` } }), mockEnv, "shr_1");
 assert.equal(authorized.version_id, "ver_1");
 assert.match(querySeen, /s\.version_id/);
+
+let insertedQuery = "";
+let insertedValues = [];
+const editorEnv = {
+  DB: {
+    prepare(query) {
+      return {
+        bind(...values) {
+          return {
+            async first() {
+              return { id: "shr_test", project_id: "prj_test", version_id: "ver_test", role: "editor", expires_at: "2099-01-01T00:00:00.000Z", title: "Test manuscript" };
+            },
+            async run() { insertedQuery = query; insertedValues = values; return { success: true }; }
+          };
+        }
+      };
+    }
+  },
+  MANUSCRIPTS: {}
+};
+const editorResponse = await submitReview({
+  request: new Request("https://example.test/api/reviews/shr_test", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ submission: { original: "Original sentence.", proposed: "Revised sentence.", reason: "Clearer meaning.", location: "Chapter 1" } })
+  }),
+  env: editorEnv,
+  params: { shareId: "shr_test" }
+});
+assert.equal(editorResponse.status, 201);
+assert.match(insertedQuery, /INSERT INTO editor_submissions/);
+assert.equal(JSON.parse(insertedValues[4]).proposed, "Revised sentence.");
 
 for (const file of ["review.html", "review.css", "review.js"]) assert.ok(existsSync(file), `Missing ${file}`);
 console.log("Backend schema, token helpers, version-scoped review authorization, and portal assets verified.");
