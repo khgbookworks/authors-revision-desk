@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#1f4338">
+  <title>Author Review | Author's Revision Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="review.css">
+  <script src="review.js" defer></script>
+</head>
+<body class="review-page">
+  <header class="site-header review-header">
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">R</span><span><strong>Author's Revision Desk</strong><small>Private author review</small></span></a>
+    <span class="review-private-label">Private review link</span>
+  </header>
+  <main class="review-main">
+    <section class="review-intro">
+      <p class="eyebrow">Author review portal</p>
+      <h1 id="reviewTitle">Loading your manuscript review…</h1>
+      <p id="reviewMeta">This private page lets you read the shared manuscript and respond to each proposed change. Your decisions are saved to the project record.</p>
+    </section>
+    <div id="reviewError" class="review-message" hidden></div>
+    <section id="reviewContent" hidden>
+      <div class="review-section-head"><div><p class="eyebrow">Proposed revisions</p><h2>Review each suggestion</h2></div><span id="suggestionCount" class="review-count"></span></div>
+      <div id="reviewSuggestions" class="review-suggestions"></div>
+      <div class="review-section-head chapter-review-head"><div><p class="eyebrow">Manuscript reference</p><h2>Shared chapters</h2></div></div>
+      <div id="reviewChapters" class="review-chapters"></div>
+    </section>
+    <footer class="review-footer">Your responses are stored with this review link and manuscript version. The author's original text is not changed by your decisions.</footer>
+  </main>
+  <div id="reviewToast" class="review-toast" role="status" aria-live="polite"></div>
+</body>
+</html>
