@@ -44,6 +44,8 @@ export async function onRequestPost({ request, env, params }) {
       if (!original.trim() || !proposed.trim() || !reason) return json({ ok: false, message: "An editor submission needs the original text, proposed text, and reason." }, 400);
       if (original === proposed) return json({ ok: false, message: "The proposed wording must differ from the original text." }, 400);
       const submission = { original, proposed, reason, location, category: String(item.category || "editorial").slice(0, 80) };
+      const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM editor_submissions WHERE share_id = ?").bind(share.id).first();
+      if (Number(count?.total || 0) >= 200) return json({ ok: false, message: "This editor link has reached its 200-proposal limit. Ask the project owner for a new collaboration link." }, 429);
       const now = new Date().toISOString();
       await env.DB.prepare(
         "INSERT INTO editor_submissions (id, share_id, project_id, version_id, submission_json, created_at) VALUES (?, ?, ?, ?, ?, ?)"
@@ -66,6 +68,10 @@ export async function onRequestPost({ request, env, params }) {
     const existing = await env.DB.prepare(
       "SELECT id FROM review_decisions WHERE share_id = ? AND version_id = ? AND suggestion_id = ?"
     ).bind(share.id, versionId, suggestionId).first();
+    if (!existing) {
+      const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM review_decisions WHERE share_id = ? AND version_id = ?").bind(share.id, versionId).first();
+      if (Number(count?.total || 0) >= 500) return json({ ok: false, message: "This review link has reached its response limit. Ask the project owner for a new link." }, 429);
+    }
     const now = new Date().toISOString();
     if (existing) {
       await env.DB.prepare(
