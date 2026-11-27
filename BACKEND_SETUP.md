@@ -1,0 +1,56 @@
+# Cloud backend setup
+
+The application now has Cloudflare Pages Function routes for persistent projects, immutable version snapshots, private collaboration links, and author review decisions. These routes require Cloudflare D1 and R2 bindings. Until both are connected, the browser-only workspace remains available and the health endpoint reports the backend as not ready.
+
+## Required Cloudflare resources
+
+Create these resources in the same Cloudflare account as the Pages project:
+
+1. **D1 database** named `authors-revision-desk`.
+2. **R2 bucket** named `authors-revision-desk-manuscripts`.
+
+From a terminal with Wrangler authenticated to the correct Cloudflare account:
+
+```bash
+npx wrangler d1 create authors-revision-desk
+npx wrangler r2 bucket create authors-revision-desk-manuscripts
+```
+
+Apply the schema:
+
+```bash
+npx wrangler d1 execute authors-revision-desk --remote --file=migrations/0001_manuscript_workspace.sql
+```
+
+## Bind resources to Cloudflare Pages
+
+In Cloudflare:
+
+1. Open **Workers & Pages** and select the `authors-revision-desk` Pages project.
+2. Open **Settings → Functions → Bindings**.
+3. Add a D1 database binding with variable name **DB**, selecting `authors-revision-desk`.
+4. Add an R2 bucket binding with variable name **MANUSCRIPTS**, selecting `authors-revision-desk-manuscripts`.
+5. Save the bindings and redeploy the Pages project so the Functions receive them.
+
+Do not put database credentials, owner keys, or share keys in source code or GitHub. D1 and R2 are accessed through Cloudflare's server-side bindings.
+
+## Backend routes
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/api/health` | Reports whether D1 and R2 bindings are present |
+| POST | `/api/projects` | Creates a project and returns its owner key once |
+| GET | `/api/projects/:id` | Loads a project using its owner key |
+| PUT | `/api/projects/:id` | Saves a new immutable project version |
+| POST | `/api/projects/:id/shares` | Creates a time-limited author-review or editor link |
+| DELETE | `/api/projects/:id/shares?shareId=...` | Revokes a collaboration link |
+| GET | `/api/reviews/:shareId` | Loads the shared review snapshot |
+| POST | `/api/reviews/:shareId` | Stores an author's accept, reject, or comment decision |
+
+All project and review routes require a bearer key. Only SHA-256 hashes of those keys are stored in D1. Keys are generated from cryptographically secure random bytes and returned once. Review links should carry the secret in a URL fragment, then send it in the Authorization header; fragments are not sent to the server in ordinary HTTP requests.
+
+Manuscript snapshots are stored as JSON objects in R2. D1 stores project metadata, version pointers, share permissions, and review decisions. Each save creates a new version rather than overwriting the previous snapshot.
+
+## Current boundary
+
+The API foundation is in place, but the cloud resources still need to be created and bound in the Cloudflare dashboard. The front-end cloud-sync controls and author-facing review page are the next integration stage. Do not treat the cloud backend as production-ready until the UI integration, live binding checks, access-control tests, and full manuscript round-trip have passed.
