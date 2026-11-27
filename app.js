@@ -670,6 +670,7 @@ function sanitizeRichHtml(source) {
     if (node.nodeType === Node.TEXT_NODE) { parent.appendChild(document.createTextNode(node.nodeValue || "")); return; }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const tag = node.tagName.toLowerCase();
+    if (["script", "style", "iframe", "object", "embed", "svg", "math"].includes(tag)) return;
     if (!allowed.has(tag)) { [...node.childNodes].forEach((child) => clean(child, parent)); return; }
     const element = document.createElement(tag);
     if (tag === "a") {
@@ -1086,6 +1087,34 @@ function formatBookCss() {
   const indent = type === "workbook" ? "0" : settings.paragraphIndent + "in";
   return `@page{size:${pageWidth}in ${pageHeight}in;margin:${margin} .72in .75in;${header}${pageNumber}}@page:left{margin-left:calc(.72in + ${gutter}in)}@page:right{margin-right:calc(.72in + ${gutter}in)}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{color:#202c28;font-family:${formatFont(settings.font)};font-size:${settings.fontSize}pt;line-height:${lineHeight}}.format-book{width:auto;max-width:none;margin:0;padding:0;background:#fff;min-height:0}.title-page{min-height:${contentHeight}in;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;break-after:page;page-break-after:always}.title-page h1{font-size:31pt;font-weight:400;line-height:1.12;margin:0 0 .35in}.book-subtitle{font-style:italic;margin:0 0 .25in}.book-author{font-family:Arial,sans-serif;font-size:10pt;letter-spacing:.12em;text-transform:uppercase}.front-matter{min-height:${contentHeight}in;break-after:page;page-break-after:always;display:flex;justify-content:center;align-items:center;text-align:center}.copyright-page{font-size:9pt;align-items:flex-end;text-align:left}.dedication-page{font-style:italic}.contents{break-after:page;page-break-after:always;padding-top:.35in}.contents h2{font-size:18pt;font-weight:400}.contents ol{padding-left:1.2em;line-height:2}.contents a{color:inherit;text-decoration:none}.book-chapter{break-before:page;page-break-before:always;padding-top:.1in}.book-chapter-first{break-before:auto;page-break-before:auto}.book-chapter h2{font-size:${settings.chapterStyle === "minimal" ? "17pt" : "22pt"};font-weight:400;line-height:1.1;margin:0 0 .42in;text-align:${settings.chapterStyle === "minimal" ? "left" : "center"}}.chapter-numbered h2{font-size:19pt}.chapter-text p{margin:0 0 .18in;text-indent:${indent};orphans:2;widows:2}.chapter-text p:first-child{text-indent:0}.poem-line{min-height:1.65em}.chapter-poetry h2{text-align:left}@media screen{body{background:#f3efe6}.format-book{max-width:6.8in;margin:0 auto;padding:0 .48in .7in;background:#fffdf8;box-shadow:0 10px 30px rgba(0,0,0,.08)}}`;
 }
+function runFormatterQualityChecks() {
+  const root = $("#formatQualityReport");
+  if (!root) return;
+  const sections = formattedSections();
+  const warnings = [];
+  const passed = [];
+  if (!formatter.sourceText.trim()) warnings.push("No manuscript text is loaded.");
+  else passed.push(`${wordCount(formatter.sourceText)} words loaded.`);
+  if (!formatter.title.trim()) warnings.push("Book title is empty.");
+  else passed.push("Book title is set.");
+  if (!sections.length) warnings.push("No sections or chapters could be identified.");
+  else passed.push(`${sections.length} ${sections.length === 1 ? "section" : "sections"} ready for formatting.`);
+  const emptySections = sections.filter((section) => !String(section.draft || "").trim());
+  if (emptySections.length) warnings.push(`${emptySections.length} section(s) have a heading but no body text.`);
+  const titles = sections.map((section) => String(section.title || "").trim().toLowerCase()).filter(Boolean);
+  const duplicates = titles.filter((title, index) => titles.indexOf(title) !== index);
+  if (duplicates.length) warnings.push("Duplicate chapter or section headings were found.");
+  const longParagraphs = formatter.sourceText.split(/\n\s*\n/).filter((paragraph) => wordCount(paragraph) > 300).length;
+  if (longParagraphs) warnings.push(`${longParagraphs} paragraph(s) exceed 300 words. Check for missing paragraph breaks.`);
+  else passed.push("No unusually long paragraphs detected.");
+  if (formatter.sourceHtml && /<(strong|b|em|i)(\s|>)/i.test(formatter.sourceHtml)) passed.push("Imported bold and italic formatting is retained.");
+  if (formatter.settings.includeToc && sections.length < 2) warnings.push("A contents page is selected, but fewer than two sections were detected.");
+  if (formatter.settings.includeFrontMatter && !formatter.author.trim()) warnings.push("The title page has no author name.");
+  const warningMarkup = warnings.length ? `<ul class="qa-warnings">${warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : '<p class="qa-clear">No content-level warnings were found.</p>';
+  root.innerHTML = `<section class="format-qa-card"><div class="ai-report-heading"><strong>Formatter quality check</strong><span>${new Date().toLocaleString()}</span></div><h4>Checks passed</h4><ul class="qa-passed">${passed.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul><h4>Review these items</h4>${warningMarkup}<p class="qa-manual">Manual print check still required: inspect page breaks, blank pages, running headers, page numbers, widows, orphans, and chapter openings in the final PDF preview. The browser cannot reliably certify final pagination from the source text alone.</p></section>`;
+  root.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 function renderFormattedPreview() {
   const preview = $("#formattedPreview");
   if (!formatter.sourceText) { preview.hidden = true; $("#formatPlaceholder").hidden = false; $("#formatterActions").hidden = true; return; }
@@ -1115,7 +1144,7 @@ async function exportEpub() {
   const manifest = `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:uuid:${makeId()}</dc:identifier><dc:title>${escapeHtml(title)}</dc:title><dc:language>en</dc:language><dc:creator>${escapeHtml(author)}</dc:creator></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="content" href="content.xhtml" media-type="application/xhtml+xml"/><item id="styles" href="styles.css" media-type="text/css"/></manifest><spine><itemref idref="content"/></spine></package>`;
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
   zip.file("META-INF/container.xml", `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
-  zip.file("OEBPS/nav.xhtml", nav); zip.file("OEBPS/content.xhtml", xhtml.replace(/<br>/g, "<br/>").replace(/&nbsp;/g, "&#160;")); zip.file("OEBPS/styles.css", css); zip.file("OEBPS/content.opf", manifest);
+  zip.file("OEBPS/nav.xhtml", nav); zip.file("OEBPS/content.xhtml", xhtml.replace(/<br>/g, "<br/>").replace(/<hr>/g, "<hr/>").replace(/&nbsp;/g, "&#160;")); zip.file("OEBPS/styles.css", css); zip.file("OEBPS/content.opf", manifest);
   const blob = await zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
   downloadFile(`${slug(title)}.epub`, blob); showToast("EPUB download started.");
 }
@@ -1266,6 +1295,7 @@ function bindFormatterActions() {
   $("#formatDropZone").onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); $("#formatFileInput").click(); } };
   $("[data-format-paste]").onclick = async () => { try { const text = await navigator.clipboard.readText(); if (!text) { showToast("Your clipboard is empty."); return; } formatter.sourceText = text; formatter.sourceHtml = ""; persistFormatter(); renderFormatter(); showToast("Finished manuscript pasted. Choose your format, then preview it."); } catch (error) { showToast("Tap inside the book formatter after copying your text, or choose a file instead."); } };
   $("[data-format-preview]").onclick = () => { if (!formatter.sourceText.trim()) { showToast("Load the finished manuscript before previewing it."); return; } persistFormatter(); renderFormattedPreview(); $("#formattedPreview").scrollIntoView({ behavior: "smooth", block: "start" }); };
+  $("[data-format-qa]").onclick = runFormatterQualityChecks;
   $("[data-download-epub]").onclick = exportEpub;
   $("[data-download-doc]").onclick = exportDoc;
   $("[data-download-docx]").onclick = exportDocx;
