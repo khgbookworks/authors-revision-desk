@@ -13,7 +13,7 @@ export async function onRequestGet({ request, env, params }) {
     ).bind(project.current_version_id, project.id).first();
     const snapshot = await loadProjectSnapshot(env, currentVersion);
     const reviewDecisions = await env.DB.prepare(
-      "SELECT d.suggestion_id, d.decision, d.comment, d.updated_at, s.label AS share_label, s.role FROM review_decisions d JOIN project_shares s ON s.id = d.share_id WHERE s.project_id = ? ORDER BY d.updated_at DESC"
+      "SELECT d.suggestion_id, d.version_id, d.decision, d.comment, d.updated_at, s.label AS share_label, s.role FROM review_decisions d JOIN project_shares s ON s.id = d.share_id WHERE s.project_id = ? ORDER BY d.updated_at DESC"
     ).bind(project.id).all();
     return json({ ok: true, project, currentVersion, versions: versions.results || [], reviewDecisions: reviewDecisions.results || [], snapshot });
   } catch (error) {
