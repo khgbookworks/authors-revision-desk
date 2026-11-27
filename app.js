@@ -674,8 +674,6 @@ async function exportEpub() {
   downloadFile(`${slug(title)}.epub`, blob); showToast("EPUB download started.");
 }
 
-function xmlEscape(value = "") { return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[char])); }
-
 async function exportDocx() {
   if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; }
   if (!window.JSZip) { showToast("The Word export helper is still loading. Try again in a moment."); return; }
