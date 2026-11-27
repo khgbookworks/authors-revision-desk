@@ -72,7 +72,7 @@ export async function authorizeShare(request, env, shareId) {
   if (!token) return null;
   const tokenHash = await hashSecret(token);
   return env.DB.prepare(
-    "SELECT s.id, s.project_id, s.role, s.expires_at, p.title, p.current_version_id FROM project_shares s JOIN projects p ON p.id = s.project_id WHERE s.id = ? AND s.token_hash = ? AND s.revoked_at IS NULL AND p.archived_at IS NULL"
+    "SELECT s.id, s.project_id, s.version_id, s.role, s.expires_at, p.title FROM project_shares s JOIN projects p ON p.id = s.project_id WHERE s.id = ? AND s.token_hash = ? AND s.revoked_at IS NULL AND p.archived_at IS NULL"
   ).bind(shareId, tokenHash).first().then((share) => {
     if (!share) return null;
     if (share.expires_at && Date.parse(share.expires_at) <= Date.now()) return null;
