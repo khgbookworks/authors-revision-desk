@@ -75,7 +75,7 @@ jobs:
             "formatFontSize", "formatLineSpacing", "formatIndent", "formatMargin",
             "includeRunningHeaders", "bookType", "trimSize", "formatFont",
             "chapterStyle", "includeFrontMatter", "includeToc", "includePageNumbers",
-            "formatQualityReport", "data-format-qa"
+            "formatQualityReport"
           ];
           const missing = ids.filter((id) => !html.includes(`id="${id}"`));
           if (missing.length) throw new Error(`Missing formatter controls: ${missing.join(", ")}`);
@@ -87,6 +87,7 @@ jobs:
           ];
           const absent = requiredCode.filter((token) => !app.includes(token));
           if (!html.includes("data-download-docx")) absent.push("DOCX download button");
+          if (!html.includes("data-format-qa")) absent.push("formatter quality check button");
           if (absent.length) throw new Error(`Missing formatter implementation: ${absent.join(", ")}`);
           const backendFiles = [
             "functions/api/_shared.js",
