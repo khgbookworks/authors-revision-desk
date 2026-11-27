@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
-import { webcrypto } from "node:crypto";
 import { newId, newSecret, hashSecret, bearer, authorizeShare } from "../functions/api/_shared.js";
-
-globalThis.crypto = webcrypto;
 
 const schema = readFileSync("migrations/0001_manuscript_workspace.sql", "utf8");
 const shares = readFileSync("functions/api/projects/[id]/shares.js", "utf8");
