@@ -88,6 +88,12 @@ function renderCloudActions() {
   create.hidden = connected;
   save.hidden = !connected;
   share.hidden = !connected;
+  const refresh = $("[data-cloud-refresh]");
+  const revoke = $("[data-cloud-revoke]");
+  const keyExport = $("[data-cloud-key-export]");
+  if (refresh) refresh.hidden = !connected;
+  if (revoke) revoke.hidden = !connected || !cloudProject.latestShareId;
+  if (keyExport) keyExport.hidden = !connected;
 }
 
 async function ensureCloudBackend() {
@@ -108,8 +114,8 @@ async function createCloudProject() {
     cloudProject = { id: result.project.id, title: result.project.title, ownerToken: result.ownerToken };
     localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
     renderCloudActions();
-    showToast("Cloud project created. Your private owner key is saved in this browser.");
-    alert("Your cloud project is ready. Keep this browser profile private and download a separate backup. The owner key is stored in this browser and cannot be recovered if browser data is cleared.");
+    exportCloudAccessKey();
+    showToast("Cloud project created. A private recovery key file has been downloaded.");
   } catch (error) {
     showToast(error.message);
   }
@@ -123,20 +129,86 @@ async function saveCloudVersion() {
       snapshot: cloudSnapshot()
     });
     showToast(`Cloud version ${result.version.versionNumber} saved.`);
+    return true;
   } catch (error) {
     showToast(error.message);
+    return false;
   }
+}
+
+function exportCloudAccessKey() {
+  if (!cloudProject) return;
+  downloadFile(`${slug(cloudProject.title)}-private-cloud-access.json`, JSON.stringify({
+    service: "Author's Revision Desk",
+    projectId: cloudProject.id,
+    projectTitle: cloudProject.title,
+    ownerToken: cloudProject.ownerToken,
+    warning: "Treat this file like a password. Anyone with it can access this cloud project."
+  }, null, 2), "application/json");
+}
+
+async function importCloudAccessKey(file) {
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const id = String(data.projectId || data.id || "");
+    const ownerToken = String(data.ownerToken || "");
+    if (!/^prj_[a-f0-9]{32}$/i.test(id) || !/^[a-f0-9]{64}$/i.test(ownerToken)) {
+      throw new Error("This is not a valid Author's Revision Desk access key file.");
+    }
+    cloudProject = { id, title: String(data.projectTitle || "Cloud manuscript"), ownerToken };
+    localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
+    renderCloudActions();
+    await refreshCloudProject();
+    showToast("Cloud project reconnected in this browser.");
+  } catch (error) {
+    showToast(error.message || "The access key file could not be read.");
+  }
+}
+
+async function refreshCloudProject(silent = false) {
+  if (!cloudProject) return;
+  try {
+    const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}`);
+    const decisions = result.reviewDecisions || [];
+    const root = $("#cloudReviewList");
+    if (root) {
+      root.innerHTML = decisions.length ? decisions.map((item) => `<article class="cloud-review-item"><strong>${escapeHtml(item.suggestion_id)}</strong><span>${escapeHtml(item.decision)} · ${escapeHtml(item.share_label || "Review link")}</span><p>${escapeHtml(item.comment || "No comment attached.")}</p></article>`).join("") : '<p class="micro-note">No author responses have been submitted yet.</p>';
+    }
+    if (!silent) showToast(`Cloud project refreshed. ${decisions.length} author response(s) found.`);
+  } catch (error) {
+    if (!silent) showToast(error.message);
+    const root = $("#cloudReviewList");
+    if (root) root.textContent = error.message;
+  }
+}
+
+async function revokeLatestReviewLink() {
+  if (!cloudProject?.latestShareId) return;
+  try {
+    const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}/shares?shareId=${encodeURIComponent(cloudProject.latestShareId)}`, "DELETE");
+    if (result.revoked) {
+      delete cloudProject.latestShareId;
+      localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
+      renderCloudActions();
+      showToast("The latest author review link has been revoked.");
+    } else showToast("That review link was already revoked or could not be found.");
+  } catch (error) { showToast(error.message); }
 }
 
 async function createAuthorReviewLink() {
   if (!cloudProject) { showToast("Create a cloud project before sharing a review link."); return; }
   try {
-    await saveCloudVersion();
+    const saved = await saveCloudVersion();
+    if (!saved) return;
     const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}/shares`, "POST", {
       role: "author_review",
       label: "Author review",
       expiresInDays: 14
     });
+    cloudProject.latestShareId = result.share.id;
+    localStorage.setItem(cloudStorageKey, JSON.stringify(cloudProject));
+    renderCloudActions();
     const link = new URL("review.html", window.location.href);
     link.hash = new URLSearchParams({ share: result.share.id, key: result.token }).toString();
     try {
@@ -609,6 +681,10 @@ function bindGlobalActions() {
   $("[data-cloud-create]").onclick = createCloudProject;
   $("[data-cloud-save]").onclick = saveCloudVersion;
   $("[data-cloud-share]").onclick = createAuthorReviewLink;
+  $("[data-cloud-refresh]").onclick = () => refreshCloudProject();
+  $("[data-cloud-revoke]").onclick = revokeLatestReviewLink;
+  $("[data-cloud-key-export]").onclick = exportCloudAccessKey;
+  $("#cloudKeyFile").onchange = (event) => importCloudAccessKey(event.target.files[0]);
   $("#fileInput").onchange = (event) => readFileInto(event.target.files[0], $("#manuscriptInput"), $("#projectTitle"), "File loaded. Read it over, then open the beta reading desk.");
   $("#dropZone").ondragover = (event) => { event.preventDefault(); $("#dropZone").classList.add("is-dragging"); };
   $("#dropZone").ondragleave = () => $("#dropZone").classList.remove("is-dragging");
@@ -896,6 +972,7 @@ function renderInitialView() {
 
 bindGlobalActions();
 renderCloudActions();
+if (cloudProject) refreshCloudProject(true);
 renderApp();
 renderFormatter();
 renderEditingWorkspace();
