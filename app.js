@@ -675,7 +675,10 @@ async function exportPdf() {
     "</head>",
     "<style>@media print{html,body{background:#fff!important}.format-book{max-width:none!important;box-shadow:none!important}}</style></head>"
   );
+  let printStarted = false;
   const startPrint = () => {
+    if (printStarted) return;
+    printStarted = true;
     printWindow.focus();
     printWindow.print();
   };
