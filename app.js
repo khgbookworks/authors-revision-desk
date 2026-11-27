@@ -177,13 +177,18 @@ async function createCloudProject() {
     renderCloudActions();
     exportCloudAccessKey();
     showToast("Cloud project created. A private recovery key file has been downloaded.");
+    return true;
   } catch (error) {
     showToast(error.message);
+    return false;
   }
 }
 
 async function saveCloudVersion() {
-  if (!cloudProject) return createCloudProject();
+  if (!cloudProject) {
+    const created = await createCloudProject();
+    return Boolean(created && cloudProject);
+  }
   try {
     const result = await cloudRequest(`/api/projects/${encodeURIComponent(cloudProject.id)}`, "PUT", {
       label: "Saved workspace version",
