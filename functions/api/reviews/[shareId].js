@@ -35,7 +35,7 @@ export async function onRequestPost({ request, env, params }) {
     const suggestionId = String(payload.suggestionId || "").trim().slice(0, 160);
     const decision = String(payload.decision || "");
     const comment = String(payload.comment || "").trim().slice(0, 4000);
-    const versionId = String(payload.versionId || share.version_id);
+    const versionId = share.version_id;
     if (!suggestionId) return json({ ok: false, message: "A suggestion ID is required." }, 400);
     if (!["accepted", "rejected", "commented"].includes(decision)) {
       return json({ ok: false, message: "Choose accepted, rejected, or commented." }, 400);
