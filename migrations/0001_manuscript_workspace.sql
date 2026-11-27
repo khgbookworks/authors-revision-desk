@@ -64,3 +64,16 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 
 CREATE INDEX IF NOT EXISTS idx_ai_usage_date
   ON ai_usage(usage_date);
+
+
+CREATE TABLE IF NOT EXISTS editor_submissions (
+  id TEXT PRIMARY KEY,
+  share_id TEXT NOT NULL REFERENCES project_shares(id) ON DELETE CASCADE,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  version_id TEXT NOT NULL REFERENCES project_versions(id) ON DELETE CASCADE,
+  submission_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_editor_submissions_project
+  ON editor_submissions(project_id, created_at DESC);
