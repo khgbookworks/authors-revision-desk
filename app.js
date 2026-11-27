@@ -614,7 +614,7 @@ function formatBookMarkup(includeDocument = false) {
   const chapterClass = settings.chapterStyle === "minimal" ? "chapter-minimal" : settings.chapterStyle === "numbered" ? "chapter-numbered" : settings.chapterStyle === "poetry" ? "chapter-poetry" : "chapter-classic";
   const frontMatter = settings.includeFrontMatter ? `<section class="title-page"><h1>${title}</h1>${author ? `<p class="book-author">${author}</p>` : ""}</section>` : "";
   const toc = settings.includeToc && sections.length > 1 ? `<section class="contents"><h2>Contents</h2><ol>${sections.map((chapter) => `<li>${escapeHtml(chapter.title)}</li>`).join("")}</ol></section>` : "";
-  const body = sections.map((chapter, index) => `<section class="book-chapter ${chapterClass}"><h2>${settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2><div class="chapter-text">${textBlocksHtml(chapter.draft, type)}</div></section>`).join("");
+  const body = sections.map((chapter, index) => `<section class="book-chapter ${chapterClass}${index === 0 ? " book-chapter-first" : ""}"><h2>${settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2><div class="chapter-text">${textBlocksHtml(chapter.draft, type)}</div></section>`).join("");
   const inner = `<div class="format-book format-${type}" data-trim="${settings.trimSize}">${frontMatter}${toc}${body}</div>`;
   if (!includeDocument) return inner;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${formatBookCss()}</style></head><body>${inner}</body></html>`;
@@ -623,7 +623,10 @@ function formatBookMarkup(includeDocument = false) {
 function formatBookCss() {
   const type = effectiveBookType();
   const settings = formatter.settings;
-  return `@page{size:${trimDimensions(settings.trimSize).join("in ")}in;margin:.7in${settings.includePageNumbers ? ";@bottom-center{content:counter(page);font:8pt Arial;color:#8b918c}" : ""}}*{box-sizing:border-box}body{margin:0;background:#f3efe6;color:#202c28;font-family:${formatFont(settings.font)};font-size:11.5pt;line-height:${type === "poetry" ? "1.65" : "1.55"}}.format-book{max-width:6.8in;margin:0 auto;background:#fffdf8;padding:0 .48in ${settings.includePageNumbers ? "1.1in" : ".7in"};min-height:9in}.title-page{min-height:8.2in;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;page-break-after:always}.title-page h1{font-size:31pt;font-weight:400;line-height:1.12;margin:0 0 .35in}.book-author{font-family:Arial,sans-serif;font-size:10pt;letter-spacing:.12em;text-transform:uppercase}.contents{page-break-after:always;padding-top:.7in}.contents h2{font-size:18pt;font-weight:400}.contents ol{padding-left:1.2em;line-height:2}.book-chapter{page-break-before:always;padding-top:${settings.chapterStyle === "minimal" ? ".25in" : ".75in"}}.title-page+.contents+.book-chapter,.title-page+.book-chapter,.contents+.book-chapter{page-break-before:avoid}.book-chapter h2{font-size:${settings.chapterStyle === "minimal" ? "17pt" : "22pt"};font-weight:400;line-height:1.1;margin:0 0 .42in;text-align:${settings.chapterStyle === "minimal" ? "left" : "center"}}.chapter-numbered h2{font-size:19pt}.chapter-text p{margin:0 0 .18in;text-indent:${type === "workbook" ? "0" : ".22in"}}.chapter-text p:first-child{text-indent:0}.poem-line{min-height:1.65em}.chapter-poetry h2{text-align:left}.format-book:after{content:"";display:block;position:fixed;bottom:.35in;left:0;right:0;text-align:center;color:#8b918c;font:8pt Arial,sans-serif}`;
+  const [pageWidth, pageHeight] = trimDimensions(settings.trimSize);
+  const contentHeight = Math.max(4, pageHeight - 1.45);
+  const pageNumber = settings.includePageNumbers ? "@bottom-center{content:counter(page);font:8pt Arial,sans-serif;color:#777}" : "";
+  return `@page{size:${pageWidth}in ${pageHeight}in;margin:.7in .72in .75in;${pageNumber}}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{color:#202c28;font-family:${formatFont(settings.font)};font-size:11.5pt;line-height:${type === "poetry" ? "1.65" : "1.55"}}.format-book{width:auto;max-width:none;margin:0;padding:0;background:#fff;min-height:0}.title-page{min-height:${contentHeight}in;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;break-after:page;page-break-after:always}.title-page h1{font-size:31pt;font-weight:400;line-height:1.12;margin:0 0 .35in}.book-author{font-family:Arial,sans-serif;font-size:10pt;letter-spacing:.12em;text-transform:uppercase}.contents{break-after:page;page-break-after:always;padding-top:.35in}.contents h2{font-size:18pt;font-weight:400}.contents ol{padding-left:1.2em;line-height:2}.book-chapter{break-before:page;page-break-before:always;padding-top:.1in}.book-chapter-first{break-before:auto;page-break-before:auto}.book-chapter h2{font-size:${settings.chapterStyle === "minimal" ? "17pt" : "22pt"};font-weight:400;line-height:1.1;margin:0 0 .42in;text-align:${settings.chapterStyle === "minimal" ? "left" : "center"}}.chapter-numbered h2{font-size:19pt}.chapter-text p{margin:0 0 .18in;text-indent:${type === "workbook" ? "0" : ".22in"};orphans:2;widows:2}.chapter-text p:first-child{text-indent:0}.poem-line{min-height:1.65em}.chapter-poetry h2{text-align:left}@media screen{body{background:#f3efe6}.format-book{max-width:6.8in;margin:0 auto;padding:0 .48in .7in;background:#fffdf8;box-shadow:0 10px 30px rgba(0,0,0,.08)}}`;
 }
 
 function renderFormattedPreview() {
@@ -650,10 +653,11 @@ async function exportEpub() {
   const body = sections.map((chapter, index) => `<section epub:type="chapter" id="chapter-${index + 1}"><h2>${formatter.settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2>${textBlocksHtml(chapter.draft, effectiveBookType())}</section>`).join("");
   const xhtml = `<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title><link rel="stylesheet" type="text/css" href="styles.css"/></head><body><h1>${escapeHtml(title)}</h1>${author ? `<p class="author">${escapeHtml(author)}</p>` : ""}${body}</body></html>`;
   const css = `body{font-family:Georgia,serif;line-height:1.55;margin:5%}h1{text-align:center;font-weight:400;margin:20% 0 10%}.author{text-align:center;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.12em}section{page-break-before:always;margin-top:10%}h2{font-weight:400}p{text-indent:1em;margin:0 0 .8em}`;
-  const manifest = `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:uuid:${makeId()}</dc:identifier><dc:title>${escapeHtml(title)}</dc:title><dc:language>en</dc:language><dc:creator>${escapeHtml(author)}</dc:creator></metadata><manifest><item id="content" href="content.xhtml" media-type="application/xhtml+xml"/><item id="styles" href="styles.css" media-type="text/css"/></manifest><spine><itemref idref="content"/></spine></package>`;
+  const nav = `<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><meta charset="utf-8"/><title>Contents</title></head><body><nav epub:type="toc" id="toc"><h1>Contents</h1><ol>${sections.map((chapter, index) => `<li><a href="content.xhtml#chapter-${index + 1}">${escapeHtml(chapter.title)}</a></li>`).join("")}</ol></nav></body></html>`;
+  const manifest = `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:uuid:${makeId()}</dc:identifier><dc:title>${escapeHtml(title)}</dc:title><dc:language>en</dc:language><dc:creator>${escapeHtml(author)}</dc:creator></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="content" href="content.xhtml" media-type="application/xhtml+xml"/><item id="styles" href="styles.css" media-type="text/css"/></manifest><spine><itemref idref="content"/></spine></package>`;
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
   zip.file("META-INF/container.xml", `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
-  zip.file("OEBPS/content.xhtml", xhtml); zip.file("OEBPS/styles.css", css); zip.file("OEBPS/content.opf", manifest);
+  zip.file("OEBPS/nav.xhtml", nav); zip.file("OEBPS/content.xhtml", xhtml); zip.file("OEBPS/styles.css", css); zip.file("OEBPS/content.opf", manifest);
   const blob = await zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
   downloadFile(`${slug(title)}.epub`, blob); showToast("EPUB download started.");
 }
@@ -662,13 +666,25 @@ function exportDoc() { if (!formatter.sourceText) { showToast("Load a finished m
 function exportHtml() { if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; } downloadFile(`${slug(formatTitleForExport())}.html`, formatBookMarkup(true), "text/html"); showToast("HTML download started."); }
 async function exportPdf() {
   if (!formatter.sourceText) { showToast("Load a finished manuscript first."); return; }
-  if (window.html2pdf) {
-    const [width, height] = trimDimensions(formatter.settings.trimSize);
-    try { await window.html2pdf().set({ margin: 0.35, filename: `${slug(formatTitleForExport())}.pdf`, image: { type: "jpeg", quality: 0.98 }, html2canvas: { scale: 1.5, useCORS: true }, jsPDF: { unit: "in", format: [width, height], orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"], before: [".book-chapter"] } }).from($("#formattedPreview")).save(); showToast("PDF download started."); return; } catch (error) { showToast("The direct PDF helper could not finish. Opening the print view instead."); }
-  }
   const printWindow = window.open("", "_blank");
-  if (!printWindow) { showToast("Your browser blocked the print window. Allow popups, then try again."); return; }
-  printWindow.document.write(formatBookMarkup(true).replace("</head>", "<style>@media print{body{background:#fff}.format-book{max-width:none}}</style></head>")); printWindow.document.close(); printWindow.focus(); printWindow.print();
+  if (!printWindow) {
+    showToast("Your browser blocked the print window. Allow popups, then try again.");
+    return;
+  }
+  const printHtml = formatBookMarkup(true).replace(
+    "</head>",
+    "<style>@media print{html,body{background:#fff!important}.format-book{max-width:none!important;box-shadow:none!important}}</style></head>"
+  );
+  const startPrint = () => {
+    printWindow.focus();
+    printWindow.print();
+  };
+  printWindow.addEventListener("load", startPrint, { once: true });
+  printWindow.document.open();
+  printWindow.document.write(printHtml);
+  printWindow.document.close();
+  if (printWindow.document.readyState === "complete") startPrint();
+  showToast("Print view opened. Choose Save as PDF in your browser's print dialog.");
 }
 
 function bindFormatterActions() {
