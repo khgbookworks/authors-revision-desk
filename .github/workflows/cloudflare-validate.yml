@@ -35,3 +35,28 @@ jobs:
           test -s dist/index.html
           test -s dist/app.js
           test -s dist/styles.css
+      - name: Verify formatter controls and exports
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const html = readFileSync("index.html", "utf8");
+          const app = readFileSync("app.js", "utf8");
+          const ids = [
+            "formatTitle", "formatAuthor", "formatSubtitle", "formatCopyright",
+            "formatDedication", "formatAcknowledgements", "formatGutter",
+            "formatFontSize", "formatLineSpacing", "formatIndent", "formatMargin",
+            "includeRunningHeaders", "bookType", "trimSize", "formatFont",
+            "chapterStyle", "includeFrontMatter", "includeToc", "includePageNumbers"
+          ];
+          const missing = ids.filter((id) => !html.includes(`id="${id}"`));
+          if (missing.length) throw new Error(`Missing formatter controls: ${missing.join(", ")}`);
+          const requiredCode = [
+            "function formatBookMarkup", "function formatBookCss", "async function exportDocx",
+            "function exportEpub", 'properties="nav"', "@page:left", "@page:right",
+            '$("[data-download-docx]").onclick = exportDocx'
+          ];
+          const absent = requiredCode.filter((token) => !app.includes(token));
+          if (!html.includes("data-download-docx")) absent.push("DOCX download button");
+          if (absent.length) throw new Error(`Missing formatter implementation: ${absent.join(", ")}`);
+          console.log("Formatter controls and export hooks verified.");
+          NODE
