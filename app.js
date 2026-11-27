@@ -669,7 +669,7 @@ async function exportEpub() {
   const manifest = `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:uuid:${makeId()}</dc:identifier><dc:title>${escapeHtml(title)}</dc:title><dc:language>en</dc:language><dc:creator>${escapeHtml(author)}</dc:creator></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="content" href="content.xhtml" media-type="application/xhtml+xml"/><item id="styles" href="styles.css" media-type="text/css"/></manifest><spine><itemref idref="content"/></spine></package>`;
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
   zip.file("META-INF/container.xml", `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`);
-  zip.file("OEBPS/nav.xhtml", nav); zip.file("OEBPS/content.xhtml", xhtml.replace(/<br>/g, "<br/>")); zip.file("OEBPS/styles.css", css); zip.file("OEBPS/content.opf", manifest);
+  zip.file("OEBPS/nav.xhtml", nav); zip.file("OEBPS/content.xhtml", xhtml.replace(/<br>/g, "<br/>").replace(/&nbsp;/g, "&#160;")); zip.file("OEBPS/styles.css", css); zip.file("OEBPS/content.opf", manifest);
   const blob = await zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
   downloadFile(`${slug(title)}.epub`, blob); showToast("EPUB download started.");
 }
