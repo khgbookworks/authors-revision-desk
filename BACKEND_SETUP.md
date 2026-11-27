@@ -30,7 +30,8 @@ In Cloudflare:
 2. Open **Settings → Functions → Bindings**.
 3. Add a D1 database binding with variable name **DB**, selecting `authors-revision-desk`.
 4. Add an R2 bucket binding with variable name **MANUSCRIPTS**, selecting `authors-revision-desk-manuscripts`.
-5. Save the bindings and redeploy the Pages project so the Functions receive them.
+5. Add a Workers AI binding with variable name **AI** if you want the AI editing and beta-reading tools. Pages Functions receive this binding through the dashboard.
+6. Save the bindings and redeploy the Pages project so the Functions receive them.
 
 Do not put database credentials, owner keys, or share keys in source code or GitHub. D1 and R2 are accessed through Cloudflare's server-side bindings.
 
@@ -46,6 +47,9 @@ Do not put database credentials, owner keys, or share keys in source code or Git
 | DELETE | `/api/projects/:id/shares?shareId=...` | Revokes a collaboration link |
 | GET | `/api/reviews/:shareId` | Loads the shared review snapshot |
 | POST | `/api/reviews/:shareId` | Stores an author's accept, reject, or comment decision |
+| POST | `/api/ai-edit` | Authenticated, structured AI editing suggestions |
+| POST | `/api/beta-read` | Authenticated chapter-level beta-reading report |
+| POST | `/api/beta-read/book` | Whole-book synthesis from saved chapter reports |
 
 All project and review routes require a bearer key. Only SHA-256 hashes of those keys are stored in D1. Keys are generated from cryptographically secure random bytes and returned once. Review links should carry the secret in a URL fragment, then send it in the Authorization header; fragments are not sent to the server in ordinary HTTP requests.
 
