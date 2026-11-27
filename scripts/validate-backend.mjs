@@ -15,7 +15,7 @@ for (const table of ["projects", "project_versions", "project_shares", "review_d
   assert.match(schema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`), `Missing ${table} table`);
 }
 assert.match(schema, /version_id TEXT NOT NULL REFERENCES project_versions/);
-assert.match(shares, /INSERT INTO project_shares \\(id, project_id, version_id, token_hash/);
+assert.match(shares, /INSERT INTO project_shares \(id, project_id, version_id, token_hash/);
 assert.doesNotMatch(shares, /"undefined"/);
 assert.match(projectApi, /await env\.DB\.batch\(/);
 assert.match(createApi, /await env\.DB\.batch\(/);
