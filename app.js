@@ -34,7 +34,7 @@ const toast = $("#toast");
 
 const defaultFeedback = () => Object.fromEntries(feedbackDefinitions.map(([key]) => [key, ""]));
 const defaultChapter = (title, draft = "") => ({ id: makeId(), title, draft, improved: draft, feedback: defaultFeedback(), customFocus: "", authorDecision: "", suggestionTypes: [], editingPasses: [] });
-const defaultFormatter = () => ({ title: "", author: "", sourceText: "", settings: { bookType: "auto", trimSize: "6x9", font: "newsreader", chapterStyle: "classic", includeFrontMatter: true, includeToc: true, includePageNumbers: true } });
+const defaultFormatter = () => ({ title: "", author: "", subtitle: "", copyright: "", dedication: "", acknowledgements: "", sourceText: "", settings: { bookType: "auto", trimSize: "6x9", font: "newsreader", chapterStyle: "classic", includeFrontMatter: true, includeToc: true, includePageNumbers: true, includeRunningHeaders: false, margin: "standard", fontSize: "11.5", lineSpacing: "1.55", paragraphIndent: "0.22" } });
 
 let state = loadState() || { title: "", chapters: [], selectedId: null, updatedAt: null };
 let formatter = loadFormatterState();
@@ -573,6 +573,7 @@ function typeLabel(type) { return ({ novel: "fiction or novel", memoir: "memoir 
 function trimDimensions(trimSize) { return ({ "6x9": [6, 9], "5.5x8.5": [5.5, 8.5], a5: [5.83, 8.27], "8.5x11": [8.5, 11] }[trimSize] || [6, 9]); }
 function formatFont(font) { return ({ newsreader: "Newsreader, Georgia, serif", georgia: "Georgia, serif", palatino: "Palatino, 'Book Antiqua', serif", sans: "'DM Sans', Arial, sans-serif" }[font] || "Georgia, serif"); }
 function formatTitleForExport() { return formatter.title.trim() || "Untitled book"; }
+function escapeCssString(value = "") { return String(value).replace(/[\\\"\n\r]/g, " "); }
 
 function updateFormatterRecommendation() {
   const recommendation = $("#formatRecommendation");
@@ -581,11 +582,15 @@ function updateFormatterRecommendation() {
   recommendation.textContent = formatter.settings.bookType === "auto" ? `Based on the shape of this manuscript, a ${typeLabel(type)} treatment is a sensible starting point. You can change it.` : `You chose a ${typeLabel(formatter.settings.bookType)} treatment. Change it whenever the book asks for something else.`;
 }
 
-const formatterFieldMap = { bookType: "bookType", trimSize: "trimSize", font: "formatFont", chapterStyle: "chapterStyle", includeFrontMatter: "includeFrontMatter", includeToc: "includeToc", includePageNumbers: "includePageNumbers" };
+const formatterFieldMap = { bookType: "bookType", trimSize: "trimSize", font: "formatFont", chapterStyle: "chapterStyle", includeFrontMatter: "includeFrontMatter", includeToc: "includeToc", includePageNumbers: "includePageNumbers", includeRunningHeaders: "includeRunningHeaders", margin: "formatMargin", fontSize: "formatFontSize", lineSpacing: "formatLineSpacing", paragraphIndent: "formatIndent" };
 
 function renderFormatter() {
   $("#formatTitle").value = formatter.title;
   $("#formatAuthor").value = formatter.author;
+  $("#formatSubtitle").value = formatter.subtitle || "";
+  $("#formatCopyright").value = formatter.copyright || "";
+  $("#formatDedication").value = formatter.dedication || "";
+  $("#formatAcknowledgements").value = formatter.acknowledgements || "";
   Object.entries(formatter.settings).forEach(([key, value]) => { const field = $(`#${formatterFieldMap[key] || key}`); if (field) field.type === "checkbox" ? field.checked = Boolean(value) : field.value = value; });
   $("#formatSourceStatus").textContent = formatter.sourceText ? `${wordCount(formatter.sourceText)} words loaded locally.` : "No finished manuscript loaded yet.";
   updateFormatterRecommendation();
@@ -612,23 +617,28 @@ function formatBookMarkup(includeDocument = false) {
   const title = escapeHtml(formatTitleForExport());
   const author = escapeHtml(formatter.author.trim());
   const chapterClass = settings.chapterStyle === "minimal" ? "chapter-minimal" : settings.chapterStyle === "numbered" ? "chapter-numbered" : settings.chapterStyle === "poetry" ? "chapter-poetry" : "chapter-classic";
-  const frontMatter = settings.includeFrontMatter ? `<section class="title-page"><h1>${title}</h1>${author ? `<p class="book-author">${author}</p>` : ""}</section>` : "";
-  const toc = settings.includeToc && sections.length > 1 ? `<section class="contents"><h2>Contents</h2><ol>${sections.map((chapter) => `<li>${escapeHtml(chapter.title)}</li>`).join("")}</ol></section>` : "";
-  const body = sections.map((chapter, index) => `<section class="book-chapter ${chapterClass}${index === 0 ? " book-chapter-first" : ""}"><h2>${settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2><div class="chapter-text">${textBlocksHtml(chapter.draft, type)}</div></section>`).join("");
-  const inner = `<div class="format-book format-${type}" data-trim="${settings.trimSize}">${frontMatter}${toc}${body}</div>`;
+  const frontMatter = settings.includeFrontMatter ? `<section class="title-page"><h1>${title}</h1>${formatter.subtitle ? `<p class="book-subtitle">${escapeHtml(formatter.subtitle)}</p>` : ""}${author ? `<p class="book-author">${author}</p>` : ""}</section>` : "";
+  const copyright = formatter.copyright.trim() ? `<section class="front-matter copyright-page"><p>${escapeHtml(formatter.copyright).replace(/\n/g, "<br>")}</p></section>` : "";
+  const dedication = formatter.dedication.trim() ? `<section class="front-matter dedication-page"><p>${escapeHtml(formatter.dedication).replace(/\n/g, "<br>")}</p></section>` : "";
+  const acknowledgements = formatter.acknowledgements.trim() ? `<section class="front-matter acknowledgements-page"><h2>Acknowledgements</h2><div>${textBlocksHtml(formatter.acknowledgements, type)}</div></section>` : "";
+  const toc = settings.includeToc && sections.length > 1 ? `<section class="contents"><h2>Contents</h2><ol>${sections.map((chapter, index) => `<li><a href="#chapter-${index + 1}">${escapeHtml(chapter.title)}</a></li>`).join("")}</ol></section>` : "";
+  const body = sections.map((chapter, index) => `<section class="book-chapter ${chapterClass}${index === 0 ? " book-chapter-first" : ""}" id="chapter-${index + 1}"><h2>${settings.chapterStyle === "numbered" ? `${index + 1}. ` : ""}${escapeHtml(chapter.title)}</h2><div class="chapter-text">${textBlocksHtml(chapter.draft, type)}</div></section>`).join("");
+  const inner = `<div class="format-book format-${type}" data-trim="${settings.trimSize}">${frontMatter}${copyright}${dedication}${toc}${acknowledgements}${body}</div>`;
   if (!includeDocument) return inner;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${formatBookCss()}</style></head><body>${inner}</body></html>`;
 }
-
 function formatBookCss() {
   const type = effectiveBookType();
   const settings = formatter.settings;
   const [pageWidth, pageHeight] = trimDimensions(settings.trimSize);
   const contentHeight = Math.max(4, pageHeight - 1.45);
+  const margin = settings.margin === "narrow" ? ".55in" : settings.margin === "wide" ? ".9in" : ".7in";
+  const header = settings.includeRunningHeaders ? `@top-center{content:"${escapeCssString(formatTitleForExport())}";font:8pt Arial,sans-serif;color:#777}` : "";
   const pageNumber = settings.includePageNumbers ? "@bottom-center{content:counter(page);font:8pt Arial,sans-serif;color:#777}" : "";
-  return `@page{size:${pageWidth}in ${pageHeight}in;margin:.7in .72in .75in;${pageNumber}}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{color:#202c28;font-family:${formatFont(settings.font)};font-size:11.5pt;line-height:${type === "poetry" ? "1.65" : "1.55"}}.format-book{width:auto;max-width:none;margin:0;padding:0;background:#fff;min-height:0}.title-page{min-height:${contentHeight}in;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;break-after:page;page-break-after:always}.title-page h1{font-size:31pt;font-weight:400;line-height:1.12;margin:0 0 .35in}.book-author{font-family:Arial,sans-serif;font-size:10pt;letter-spacing:.12em;text-transform:uppercase}.contents{break-after:page;page-break-after:always;padding-top:.35in}.contents h2{font-size:18pt;font-weight:400}.contents ol{padding-left:1.2em;line-height:2}.book-chapter{break-before:page;page-break-before:always;padding-top:.1in}.book-chapter-first{break-before:auto;page-break-before:auto}.book-chapter h2{font-size:${settings.chapterStyle === "minimal" ? "17pt" : "22pt"};font-weight:400;line-height:1.1;margin:0 0 .42in;text-align:${settings.chapterStyle === "minimal" ? "left" : "center"}}.chapter-numbered h2{font-size:19pt}.chapter-text p{margin:0 0 .18in;text-indent:${type === "workbook" ? "0" : ".22in"};orphans:2;widows:2}.chapter-text p:first-child{text-indent:0}.poem-line{min-height:1.65em}.chapter-poetry h2{text-align:left}@media screen{body{background:#f3efe6}.format-book{max-width:6.8in;margin:0 auto;padding:0 .48in .7in;background:#fffdf8;box-shadow:0 10px 30px rgba(0,0,0,.08)}}`;
+  const lineHeight = type === "poetry" ? "1.65" : settings.lineSpacing;
+  const indent = type === "workbook" ? "0" : settings.paragraphIndent + "in";
+  return `@page{size:${pageWidth}in ${pageHeight}in;margin:${margin} .72in .75in;${header}${pageNumber}}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{color:#202c28;font-family:${formatFont(settings.font)};font-size:${settings.fontSize}pt;line-height:${lineHeight}}.format-book{width:auto;max-width:none;margin:0;padding:0;background:#fff;min-height:0}.title-page{min-height:${contentHeight}in;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;break-after:page;page-break-after:always}.title-page h1{font-size:31pt;font-weight:400;line-height:1.12;margin:0 0 .35in}.book-subtitle{font-style:italic;margin:0 0 .25in}.book-author{font-family:Arial,sans-serif;font-size:10pt;letter-spacing:.12em;text-transform:uppercase}.front-matter{min-height:${contentHeight}in;break-after:page;page-break-after:always;display:flex;justify-content:center;align-items:center;text-align:center}.copyright-page{font-size:9pt;align-items:flex-end;text-align:left}.dedication-page{font-style:italic}.contents{break-after:page;page-break-after:always;padding-top:.35in}.contents h2{font-size:18pt;font-weight:400}.contents ol{padding-left:1.2em;line-height:2}.contents a{color:inherit;text-decoration:none}.book-chapter{break-before:page;page-break-before:always;padding-top:.1in}.book-chapter-first{break-before:auto;page-break-before:auto}.book-chapter h2{font-size:${settings.chapterStyle === "minimal" ? "17pt" : "22pt"};font-weight:400;line-height:1.1;margin:0 0 .42in;text-align:${settings.chapterStyle === "minimal" ? "left" : "center"}}.chapter-numbered h2{font-size:19pt}.chapter-text p{margin:0 0 .18in;text-indent:${indent};orphans:2;widows:2}.chapter-text p:first-child{text-indent:0}.poem-line{min-height:1.65em}.chapter-poetry h2{text-align:left}@media screen{body{background:#f3efe6}.format-book{max-width:6.8in;margin:0 auto;padding:0 .48in .7in;background:#fffdf8;box-shadow:0 10px 30px rgba(0,0,0,.08)}}`;
 }
-
 function renderFormattedPreview() {
   const preview = $("#formattedPreview");
   if (!formatter.sourceText) { preview.hidden = true; $("#formatPlaceholder").hidden = false; $("#formatterActions").hidden = true; return; }
@@ -695,7 +705,8 @@ function bindFormatterActions() {
   const formatAuthor = $("#formatAuthor");
   formatTitle.oninput = () => { formatter.title = formatTitle.value; updateFormatterPreview(); };
   formatAuthor.oninput = () => { formatter.author = formatAuthor.value; updateFormatterPreview(); };
-  $$("#bookType,#trimSize,#formatFont,#chapterStyle,#includeFrontMatter,#includeToc,#includePageNumbers").forEach((field) => field.onchange = () => { const key = Object.entries(formatterFieldMap).find(([, id]) => id === field.id)?.[0] || field.id; formatter.settings[key] = field.type === "checkbox" ? field.checked : field.value; updateFormatterPreview(); });
+  [["formatSubtitle","subtitle"],["formatCopyright","copyright"],["formatDedication","dedication"],["formatAcknowledgements","acknowledgements"]].forEach(([id,key]) => { const field = $(`#${id}`); field.oninput = () => { formatter[key] = field.value; updateFormatterPreview(); }; });
+  $("#bookType,#trimSize,#formatFont,#chapterStyle,#includeFrontMatter,#includeToc,#includePageNumbers,#includeRunningHeaders,#formatMargin,#formatFontSize,#formatLineSpacing,#formatIndent").forEach((field) => field.onchange = () => { const key = Object.entries(formatterFieldMap).find(([, id]) => id === field.id)?.[0] || field.id; formatter.settings[key] = field.type === "checkbox" ? field.checked : field.value; updateFormatterPreview(); });
   $("#formatFileInput").onchange = async (event) => { const text = await readFileInto(event.target.files[0], $("#formatSourceStatus"), null, ""); if (text) { formatter.sourceText = text; if (!formatter.title.trim()) formatter.title = event.target.files[0].name.replace(/\.[^.]+$/, ""); persistFormatter(); renderFormatter(); showToast("Finished manuscript loaded. Choose your format, then preview it."); } };
   $("#formatDropZone").ondragover = (event) => { event.preventDefault(); $("#formatDropZone").classList.add("is-dragging"); };
   $("#formatDropZone").ondragleave = () => $("#formatDropZone").classList.remove("is-dragging");
