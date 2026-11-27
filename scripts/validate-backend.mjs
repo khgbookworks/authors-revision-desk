@@ -10,6 +10,8 @@ const createApi = readFileSync("functions/api/projects/index.js", "utf8");
 const aiEditApi = readFileSync("functions/api/ai-edit.js", "utf8");
 const betaApi = readFileSync("functions/api/beta-read.js", "utf8");
 const bookApi = readFileSync("functions/api/beta-read/book.js", "utf8");
+const appSource = readFileSync("app.js", "utf8");
+const htmlSource = readFileSync("index.html", "utf8");
 
 for (const table of ["projects", "project_versions", "project_shares", "review_decisions", "ai_usage"]) {
   assert.match(schema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`), `Missing ${table} table`);
@@ -26,6 +28,10 @@ assert.match(betaApi, /reserveAiUsage/);
 assert.match(bookApi, /reserveAiUsage/);
 assert.match(aiEditApi, /authorizeOwner/);
 assert.match(betaApi, /authorizeOwner/);
+assert.match(appSource, /function sanitizeRichHtml/);
+assert.match(appSource, /function richHtmlToDocxBlocks/);
+assert.match(appSource, /function runFormatterQualityChecks/);
+assert.match(htmlSource, /data-format-qa/);
 
 const id = newId("prj");
 assert.match(id, /^prj_[a-f0-9]{32}$/);
